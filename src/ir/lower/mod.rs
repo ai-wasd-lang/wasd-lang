@@ -40,6 +40,8 @@ pub(super) struct Lowerer {
     pub(super) closure_captures: HashMap<String, Vec<String>>,
     /// Stack of in-scope variables (name -> type) for capture analysis
     pub(super) scope_vars: HashMap<String, IrType>,
+    /// Maps function name -> return type name (for tracking struct returns)
+    pub(super) function_return_types: HashMap<String, String>,
 }
 
 impl Lowerer {
@@ -59,6 +61,7 @@ impl Lowerer {
             closure_bindings: HashMap::new(),
             closure_captures: HashMap::new(),
             scope_vars: HashMap::new(),
+            function_return_types: HashMap::new(),
         }
     }
 
@@ -111,7 +114,18 @@ impl Lowerer {
             }
         }
 
-        // Second pass: lower functions (which may reference structs/enums)
+        // Second pass: collect function return types (needed for method calls on returned structs)
+        for item in &program.items {
+            if let ast::Item::Function(f) = item {
+                if let Some(ret_ty) = &f.return_type {
+                    if let Some(type_name) = self.extract_type_name(ret_ty) {
+                        self.function_return_types.insert(f.name.clone(), type_name);
+                    }
+                }
+            }
+        }
+
+        // Third pass: lower functions (which may reference structs/enums)
         for item in &program.items {
             match item {
                 ast::Item::Use(_) => {}
@@ -311,6 +325,22 @@ impl Lowerer {
             }
         }
         0
+    }
+
+    /// Extract the type name from a Type if it's a named/struct type
+    fn extract_type_name(&self, ty: &ast::Type) -> Option<String> {
+        match ty {
+            ast::Type::Named(name) => {
+                // Exclude primitive types
+                match name.as_str() {
+                    "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64"
+                    | "f32" | "f64" | "bool" | "String" => None,
+                    _ => Some(name.clone()),
+                }
+            }
+            ast::Type::Generic(name, _) => Some(name.clone()),
+            _ => None,
+        }
     }
 
     pub(super) fn lower_type(&self, ty: &ast::Type) -> IrType {

@@ -13,25 +13,28 @@ WHAT WORKS NOW:
 - Basic LSP (diagnostics only)
 - Basic REPL (expressions only)
 
-HIGH PRIORITY GAPS (for MVP):
+HIGH PRIORITY (COMPLETED for MVP):
 
-1. LOOPS CODEGEN
-   - while/for parsed but may not compile
+1. [x] LOOPS CODEGEN
+   - while/for fully implemented with break/continue
+   - IR lowering in stmt.rs, LLVM codegen in terminator.rs
 
-2. STDLIB RUNTIME
-   - All functions are signatures only
-   - Need actual Vec, String, HashMap etc
+2. [x] STDLIB RUNTIME
+   - Vec and HashMap implemented in runtime/wasd_runtime.c
+   - C FFI for runtime functions
 
-3. TEST RUNNER
-   - No wasd test command
-   - Cannot run tests
+3. [x] TEST RUNNER
+   - wasd test command implemented
+   - #[test] and #[ignore] attributes working
+   - Test filtering with --filter
 
-4. TRAIT ENFORCEMENT
-   - Traits parsed but not enforced
-   - Generic bounds not checked
+4. [x] TRAIT ENFORCEMENT
+   - Trait registration and impl checking
+   - Error on missing trait methods
 
-5. CLOSURE CAPTURE
-   - Lambdas exist but capture broken
+5. [x] CLOSURE CAPTURE
+   - Lambda lifting implementation
+   - Captured variables passed as extra parameters
 
 MEDIUM PRIORITY:
 

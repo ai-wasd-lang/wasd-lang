@@ -8,9 +8,10 @@ FROM SPEC - NOT YET IMPLEMENTED:
     - pub/private visibility needs full enforcement
     - pkg visibility not implemented
 
-[ ] Closures with capture
-    - Syntax parsed
-    - Runtime capture not fully implemented
+[x] Closures with capture
+    - Lambda lifting implementation
+    - Captured variables passed as extra parameters
+    - Tested with multiple closures in same scope
 
 [ ] Default parameters
     - fn foo(x: i32 = 5)

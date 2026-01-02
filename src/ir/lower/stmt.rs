@@ -21,6 +21,12 @@ impl Lowerer {
 
                 // Infer the type from the value expression if not explicitly provided
                 let ir_type = if let Some(t) = ty {
+                    // Track struct type from explicit annotation
+                    if let ast::Type::Named(type_name) = t {
+                        if self.struct_fields.contains_key(type_name) {
+                            self.variable_types.insert(name.clone(), type_name.clone());
+                        }
+                    }
                     self.lower_type(t)
                 } else if let ast::Expr::StructConstruct { name: struct_name, .. } = value {
                     // Track the struct type for this variable
@@ -30,6 +36,18 @@ impl Lowerer {
                     // Track the enum type for this variable
                     self.variable_types.insert(name.clone(), enum_name.clone());
                     IrType::Struct(enum_name.clone())
+                } else if let ast::Expr::Call(callee, _, _, _) = value {
+                    // Track struct type from function call return type
+                    if let ast::Expr::Ident(func_name, _) = callee.as_ref() {
+                        if let Some(return_type) = self.function_return_types.get(func_name) {
+                            self.variable_types.insert(name.clone(), return_type.clone());
+                            IrType::Struct(return_type.clone())
+                        } else {
+                            IrType::I64
+                        }
+                    } else {
+                        IrType::I64
+                    }
                 } else {
                     IrType::I64
                 };
