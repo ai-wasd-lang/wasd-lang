@@ -48,6 +48,7 @@ impl BorrowChecker {
                         errors.append(&mut errs);
                     }
                 }
+                Item::ExternFn(_) => {} // External functions have no body to check
                 Item::Struct(_) | Item::Enum(_) | Item::Trait(_) => {} // Types don't need borrow checking
                 Item::Impl(impl_def) => {
                     // Check methods in impl blocks

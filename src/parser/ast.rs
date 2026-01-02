@@ -15,6 +15,7 @@ pub struct Program {
 pub enum Item {
     Use(UseStmt),
     Function(Function),
+    ExternFn(ExternFn),
     Struct(StructDef),
     Enum(EnumDef),
     Trait(TraitDef),
@@ -64,6 +65,15 @@ pub struct Function {
 pub struct Param {
     pub name: String,
     pub ty: Type,
+    pub span: Span,
+}
+
+/// An external function declaration (FFI).
+#[derive(Debug, Clone)]
+pub struct ExternFn {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Option<Type>,
     pub span: Span,
 }
 

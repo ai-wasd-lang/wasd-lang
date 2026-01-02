@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use super::types::WasdType;
-use crate::parser::{EnumDef, Function, ImplDef, Item, Program, StructDef, TraitDef, Type, UseStmt};
+use crate::parser::{EnumDef, ExternFn, Function, ImplDef, Item, Program, StructDef, TraitDef, Type, UseStmt};
 use crate::stdlib;
 use std::collections::HashMap;
 
@@ -126,11 +126,36 @@ impl TypeChecker {
         match item {
             Item::Use(_) => Ok(()),
             Item::Function(f) => self.check_function(f),
+            Item::ExternFn(f) => self.register_extern_fn(f),
             Item::Struct(s) => self.register_struct(s),
             Item::Enum(e) => self.register_enum(e),
             Item::Trait(t) => self.register_trait(t),
             Item::Impl(impl_def) => self.check_impl(impl_def),
         }
+    }
+
+    fn register_extern_fn(&mut self, func: &ExternFn) -> Result<(), String> {
+        let param_types: Result<Vec<WasdType>, String> = func
+            .params
+            .iter()
+            .map(|p| self.ast_type_to_wasd_type(&p.ty))
+            .collect();
+
+        let ret_type = func
+            .return_type
+            .as_ref()
+            .map(|t| self.ast_type_to_wasd_type(t))
+            .transpose()?
+            .unwrap_or(WasdType::Unit);
+
+        let fn_type = WasdType::Function {
+            params: param_types?,
+            ret: Box::new(ret_type),
+            effects: Vec::new(),
+        };
+
+        self.env.insert(func.name.clone(), fn_type);
+        Ok(())
     }
 
     fn register_trait(&mut self, _trait_def: &TraitDef) -> Result<(), String> {

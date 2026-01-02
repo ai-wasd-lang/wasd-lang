@@ -10,6 +10,15 @@ pub struct IrModule {
     pub functions: Vec<IrFunction>,
     pub structs: Vec<IrStruct>,
     pub enums: Vec<IrEnum>,
+    pub extern_fns: Vec<IrExternFn>,
+}
+
+/// An external function declaration (FFI).
+#[derive(Debug, Clone)]
+pub struct IrExternFn {
+    pub name: String,
+    pub params: Vec<IrType>,
+    pub return_type: IrType,
 }
 
 /// An IR enum definition (represented as tagged union).

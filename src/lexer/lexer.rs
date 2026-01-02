@@ -338,6 +338,7 @@ impl<'a> Lexer<'a> {
             "use" => Token::Use,
             "import" => Token::Import,
             "pub" => Token::Pub,
+            "extern" => Token::Extern,
             "as" => Token::As,
             "heap" => Token::Heap,
             "rc" => Token::Rc,

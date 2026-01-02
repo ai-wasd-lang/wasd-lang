@@ -136,7 +136,12 @@ fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> 
     let exe_path = output.cloned().unwrap_or_else(|| file.with_extension(""));
 
     let status = Command::new("cc")
-        .args([obj_path.to_str().unwrap(), "-o", exe_path.to_str().unwrap()])
+        .args([
+            obj_path.to_str().unwrap(),
+            "-o",
+            exe_path.to_str().unwrap(),
+            "-lm", // Link math library for FFI functions like sqrt, pow, sin, cos
+        ])
         .status()
         .map_err(|e| format!("Failed to run linker: {}", e))?;
 

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::ir::wasd_ir::*;
 use crate::parser as ast;
 
-pub use super::wasd_ir::{IrEnum, IrEnumVariant};
+pub use super::wasd_ir::{IrEnum, IrEnumVariant, IrExternFn};
 
 /// Lower a program AST to WASD IR.
 pub fn lower_program(program: &ast::Program) -> IrModule {
@@ -72,6 +72,7 @@ impl Lowerer {
         let mut functions = Vec::new();
         let mut structs = Vec::new();
         let mut enums = Vec::new();
+        let mut extern_fns = Vec::new();
 
         // First pass: collect struct and enum definitions so we can look up field indices
         for item in &program.items {
@@ -113,6 +114,9 @@ impl Lowerer {
                         functions.push(ir_func);
                     }
                 }
+                ast::Item::ExternFn(f) => {
+                    extern_fns.push(self.lower_extern_fn(f));
+                }
                 ast::Item::Struct(_) | ast::Item::Enum(_) => {} // Already handled
                 ast::Item::Trait(_) => {}
                 ast::Item::Impl(impl_def) => {
@@ -144,7 +148,27 @@ impl Lowerer {
 
         functions.extend(std::mem::take(&mut self.closure_funcs));
 
-        IrModule { functions, structs, enums }
+        IrModule { functions, structs, enums, extern_fns }
+    }
+
+    fn lower_extern_fn(&self, func: &ast::ExternFn) -> IrExternFn {
+        let params: Vec<_> = func
+            .params
+            .iter()
+            .map(|p| self.lower_type(&p.ty))
+            .collect();
+
+        let return_type = func
+            .return_type
+            .as_ref()
+            .map(|t| self.lower_type(t))
+            .unwrap_or(IrType::Void);
+
+        IrExternFn {
+            name: func.name.clone(),
+            params,
+            return_type,
+        }
     }
 
     fn lower_enum(&self, e: &ast::EnumDef) -> IrEnum {

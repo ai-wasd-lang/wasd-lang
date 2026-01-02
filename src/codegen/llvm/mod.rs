@@ -131,6 +131,11 @@ impl<'ctx> CodeGen<'ctx> {
             self.declare_struct(ir_struct)?;
         }
 
+        // Declare extern functions first
+        for extern_fn in &ir_module.extern_fns {
+            self.declare_extern_function(extern_fn)?;
+        }
+
         for func in &ir_module.functions {
             self.declare_function(func)?;
         }
@@ -138,6 +143,33 @@ impl<'ctx> CodeGen<'ctx> {
         for func in &ir_module.functions {
             self.compile_function(func)?;
         }
+
+        Ok(())
+    }
+
+    /// Declare an external function (FFI).
+    fn declare_extern_function(&mut self, extern_fn: &IrExternFn) -> Result<(), String> {
+        // Skip if already declared (e.g., C library functions)
+        if self.functions.contains_key(&extern_fn.name) {
+            return Ok(());
+        }
+
+        let param_types: Vec<BasicMetadataTypeEnum> = extern_fn
+            .params
+            .iter()
+            .map(|ty| self.get_llvm_type(ty).into())
+            .collect();
+
+        let fn_type = match &extern_fn.return_type {
+            IrType::Void => self.context.void_type().fn_type(&param_types, false),
+            ret_ty => {
+                let ret = self.get_llvm_type(ret_ty);
+                ret.fn_type(&param_types, false)
+            }
+        };
+
+        let fn_value = self.module.add_function(&extern_fn.name, fn_type, None);
+        self.functions.insert(extern_fn.name.clone(), fn_value);
 
         Ok(())
     }

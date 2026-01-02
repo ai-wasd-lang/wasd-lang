@@ -23,6 +23,7 @@ impl<'a> Parser<'a> {
             Token::Enum => self.parse_enum_with_visibility(is_pub).map(Item::Enum),
             Token::Trait => self.parse_trait().map(Item::Trait),
             Token::Impl => self.parse_impl().map(Item::Impl),
+            Token::Extern => self.parse_extern_fn().map(Item::ExternFn),
             _ => Err(format!("Expected item, found {:?}", self.peek())),
         }
     }
@@ -203,5 +204,35 @@ impl<'a> Parser<'a> {
         }
         self.expect(&Token::RBracket)?;
         Ok(effects)
+    }
+
+    /// Parse an extern function declaration (FFI).
+    /// Syntax: extern fn name(param: Type, ...) -> ReturnType
+    pub(super) fn parse_extern_fn(&mut self) -> Result<ExternFn, String> {
+        let start = self.current_span();
+        self.expect(&Token::Extern)?;
+        self.expect(&Token::Fn)?;
+        let name = self.expect_ident()?;
+
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+
+        let return_type = if self.check(&Token::Arrow) {
+            self.advance();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        // Consume optional newline
+        self.skip_newlines();
+
+        Ok(ExternFn {
+            name,
+            params,
+            return_type,
+            span: start,
+        })
     }
 }

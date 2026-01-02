@@ -773,4 +773,53 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_parse_extern_fn() {
+        let source = "extern fn abs(x: i64) -> i64\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::ExternFn(f) = &program.items[0] {
+            assert_eq!(f.name, "abs");
+            assert_eq!(f.params.len(), 1);
+            assert_eq!(f.params[0].name, "x");
+            assert!(matches!(&f.params[0].ty, Type::Named(n) if n == "i64"));
+            assert!(matches!(&f.return_type, Some(Type::Named(n)) if n == "i64"));
+        } else {
+            panic!("Expected extern function");
+        }
+    }
+
+    #[test]
+    fn test_parse_extern_fn_no_return() {
+        let source = "extern fn exit(code: i32)\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::ExternFn(f) = &program.items[0] {
+            assert_eq!(f.name, "exit");
+            assert_eq!(f.params.len(), 1);
+            assert!(f.return_type.is_none());
+        } else {
+            panic!("Expected extern function");
+        }
+    }
+
+    #[test]
+    fn test_parse_extern_fn_multiple_params() {
+        let source = "extern fn pow(base: f64, exp: f64) -> f64\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::ExternFn(f) = &program.items[0] {
+            assert_eq!(f.name, "pow");
+            assert_eq!(f.params.len(), 2);
+            assert_eq!(f.params[0].name, "base");
+            assert_eq!(f.params[1].name, "exp");
+            assert!(matches!(&f.return_type, Some(Type::Named(n)) if n == "f64"));
+        } else {
+            panic!("Expected extern function");
+        }
+    }
 }

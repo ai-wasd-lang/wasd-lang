@@ -108,9 +108,10 @@ fn is_public(item: &Item) -> bool {
         Item::Function(f) => f.visibility == Visibility::Public,
         Item::Struct(s) => s.visibility == Visibility::Public,
         Item::Enum(e) => e.visibility == Visibility::Public,
-        Item::Trait(_) => true, // Traits are always public for now
-        Item::Impl(_) => true,  // Impls are always public
-        Item::Use(_) => false,  // Don't re-export use statements
+        Item::Trait(_) => true,    // Traits are always public for now
+        Item::Impl(_) => true,     // Impls are always public
+        Item::ExternFn(_) => true, // Extern functions are always public
+        Item::Use(_) => false,     // Don't re-export use statements
     }
 }
 
