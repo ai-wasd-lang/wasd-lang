@@ -24,3 +24,6 @@ Thumbs.db
 
 # Test artifacts
 *.snap.new
+
+# Claude
+.claude/ralph-loop.local.md
