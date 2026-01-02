@@ -86,6 +86,7 @@ pub enum Token {
     Colon,
     DoubleColon,
     Dot,
+    DotDot,
 
     // Indentation
     Indent,
@@ -160,6 +161,7 @@ impl fmt::Display for Token {
             Token::Colon => write!(f, ":"),
             Token::DoubleColon => write!(f, "::"),
             Token::Dot => write!(f, "."),
+            Token::DotDot => write!(f, ".."),
             Token::Indent => write!(f, "<INDENT>"),
             Token::Dedent => write!(f, "<DEDENT>"),
             Token::Newline => write!(f, "<NEWLINE>"),

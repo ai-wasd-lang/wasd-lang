@@ -105,6 +105,11 @@ impl Lowerer {
             ast::Expr::Lambda { params, body, .. } => {
                 self.lower_lambda(params, body)
             }
+            ast::Expr::Range { start: _, end, .. } => {
+                // Range expressions are handled specially in for loops
+                // If used as a value, just return the end (for simple use cases like `for i in n`)
+                self.lower_expr(end)
+            }
             _ => None,
         }
     }

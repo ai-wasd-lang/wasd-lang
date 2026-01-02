@@ -198,6 +198,11 @@ impl Monomorphizer {
                 body: Box::new(self.transform_expr(body)),
                 span: span.clone(),
             },
+            Expr::Range { start, end, span } => Expr::Range {
+                start: Box::new(self.transform_expr(start)),
+                end: Box::new(self.transform_expr(end)),
+                span: span.clone(),
+            },
         }
     }
 

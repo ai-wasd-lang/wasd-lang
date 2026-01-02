@@ -86,7 +86,14 @@ impl<'a> Lexer<'a> {
             '{' => Token::LBrace,
             '}' => Token::RBrace,
             ',' => Token::Comma,
-            '.' => Token::Dot,
+            '.' => {
+                if self.peek_char() == Some('.') {
+                    self.chars.next();
+                    Token::DotDot
+                } else {
+                    Token::Dot
+                }
+            }
             '?' => Token::Question,
             '&' => Token::Ampersand,
             '|' => Token::Pipe,
@@ -271,6 +278,16 @@ impl<'a> Lexer<'a> {
                 value.push(ch);
                 self.chars.next();
             } else if ch == '.' && !is_float {
+                // Peek ahead to check if this is a range operator (..)
+                // We need to clone the iterator to peek further
+                let mut peek_iter = self.chars.clone();
+                peek_iter.next(); // consume the first .
+                if let Some(&(_, next_ch)) = peek_iter.peek() {
+                    if next_ch == '.' {
+                        // This is a range operator, don't consume the .
+                        break;
+                    }
+                }
                 is_float = true;
                 value.push(ch);
                 self.chars.next();

@@ -220,6 +220,12 @@ pub enum Expr {
         body: Box<Expr>,
         span: Span,
     },
+    /// Range expression: start..end
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+        span: Span,
+    },
 }
 
 /// Binary operators.

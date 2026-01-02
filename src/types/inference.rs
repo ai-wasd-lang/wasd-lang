@@ -190,6 +190,15 @@ impl TypeChecker {
                     effects: vec![],
                 })
             }
+            Expr::Range { start, end, .. } => {
+                // Both start and end should be integers
+                let start_ty = self.infer_expr(start)?;
+                let end_ty = self.infer_expr(end)?;
+                self.unify(&start_ty, &WasdType::I64)?;
+                self.unify(&end_ty, &WasdType::I64)?;
+                // Range is a special type - for now treat as tuple of (start, end)
+                Ok(WasdType::Named("Range".to_string()))
+            }
         }
     }
 

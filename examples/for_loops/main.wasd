@@ -1,0 +1,23 @@
+// For loop example
+use std.io
+
+fn main() -> i64
+    print("For Loop Demo")
+    print("=============")
+
+    // For loop with simple value: for i in n (iterates 0 to n-1)
+    let mut sum1 = 0
+    for i in 10
+        sum1 = sum1 + i
+    // Sum should be 0+1+2+3+4+5+6+7+8+9 = 45
+    print("Sum of 0..10 = 45")
+
+    // For loop with range: for i in start..end (iterates start to end-1)
+    let mut sum2 = 0
+    for i in 5..10
+        sum2 = sum2 + i
+    // Sum should be 5+6+7+8+9 = 35
+    print("Sum of 5..10 = 35")
+
+    // Return both sums combined
+    sum1 + sum2

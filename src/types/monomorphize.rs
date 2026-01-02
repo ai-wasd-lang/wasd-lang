@@ -258,6 +258,10 @@ impl Monomorphizer {
             Expr::Lambda { body, .. } => {
                 self.collect_expr_instantiations(body);
             }
+            Expr::Range { start, end, .. } => {
+                self.collect_expr_instantiations(start);
+                self.collect_expr_instantiations(end);
+            }
             _ => {}
         }
     }

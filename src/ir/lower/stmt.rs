@@ -113,8 +113,22 @@ impl Lowerer {
             ty: IrType::I64,
         });
 
+        // Check if iterable is a Range expression
+        let (start_val, end_val) = match iterable {
+            ast::Expr::Range { start, end, .. } => {
+                let s = self.lower_expr(start).unwrap_or(IrValue::ConstInt(0, IrType::I64));
+                let e = self.lower_expr(end).unwrap_or(IrValue::ConstInt(0, IrType::I64));
+                (s, e)
+            }
+            _ => {
+                // For non-range, start at 0 and iterate to the value
+                let e = self.lower_expr(iterable).unwrap_or(IrValue::ConstInt(0, IrType::I64));
+                (IrValue::ConstInt(0, IrType::I64), e)
+            }
+        };
+
         self.current_block.push(IrInst::Store {
-            value: IrValue::ConstInt(0, IrType::I64),
+            value: start_val,
             ptr: var.to_string(),
         });
 
@@ -126,13 +140,12 @@ impl Lowerer {
         self.finish_block(IrTerminator::Branch(cond_label.clone()));
 
         self.start_block(cond_label.clone());
-        let iter_val = self.lower_expr(iterable).unwrap_or(IrValue::ConstInt(0, IrType::I64));
         let cond_temp = self.fresh_var();
         self.current_block.push(IrInst::BinOp {
             dest: cond_temp.clone(),
             op: IrBinOp::Lt,
             left: IrValue::Var(var.to_string()),
-            right: iter_val,
+            right: end_val,
         });
         self.finish_block(IrTerminator::CondBranch {
             cond: IrValue::Var(cond_temp),

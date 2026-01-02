@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comparison(&mut self) -> Result<Expr, String> {
-        let mut left = self.parse_term()?;
+        let mut left = self.parse_range()?;
         while self.check(&Token::Lt)
             || self.check(&Token::LtEq)
             || self.check(&Token::Gt)
@@ -64,10 +64,26 @@ impl<'a> Parser<'a> {
                 _ => unreachable!(),
             };
             self.advance();
-            let right = self.parse_term()?;
+            let right = self.parse_range()?;
             left = Expr::Binary(Box::new(left), op, Box::new(right), span);
         }
         Ok(left)
+    }
+
+    fn parse_range(&mut self) -> Result<Expr, String> {
+        let left = self.parse_term()?;
+        if self.check(&Token::DotDot) {
+            let span = self.current_span();
+            self.advance();
+            let right = self.parse_term()?;
+            Ok(Expr::Range {
+                start: Box::new(left),
+                end: Box::new(right),
+                span,
+            })
+        } else {
+            Ok(left)
+        }
     }
 
     fn parse_term(&mut self) -> Result<Expr, String> {
