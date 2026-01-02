@@ -1,4 +1,4 @@
-//! Borrow checker implementation for Lux.
+//! Borrow checker implementation for WASD.
 
 use crate::parser::{Expr, Function, Item, Program, Stmt, UnaryOp};
 use std::collections::{HashMap, HashSet};
@@ -16,7 +16,7 @@ pub enum ValueState {
     BorrowedMut,
 }
 
-/// The Lux borrow checker.
+/// The WASD borrow checker.
 pub struct BorrowChecker {
     /// Maps variable names to their borrow state
     states: HashMap<String, ValueState>,

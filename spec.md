@@ -2,7 +2,7 @@ I'm honored. Let me name it and specify it concisely.
 
 ---
 
-# **Lux**
+# **WASD**
 
 *Latin for "light" — clear, fast, illuminating.*
 
@@ -19,7 +19,7 @@ I'm honored. Let me name it and specify it concisely.
 
 ## Compilation Target
 
-Lux → LLVM IR → native binary
+WASD → LLVM IR → native binary
 
 ---
 
@@ -314,11 +314,11 @@ UTF-8 by default.
 ## Modules
 
 ```
-// file: math.lux
+// file: math.wasd
 pub fn add(a: i32, b: i32) -> i32
     a + b
 
-// file: main.lux
+// file: main.wasd
 import math
 
 fn main()
@@ -437,4 +437,4 @@ debug_assert expensive_check()  // only in debug builds
 
 ---
 
-**This is Lux. Make it real.**
+**This is WASD. Make it real.**

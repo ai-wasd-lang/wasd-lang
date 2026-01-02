@@ -14,7 +14,7 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
-# Lux compiler artifacts
+# WASD compiler artifacts
 *.o
 *.a
 *.so

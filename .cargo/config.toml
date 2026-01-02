@@ -1,4 +1,4 @@
-# Cargo configuration for Lux compiler
+# Cargo configuration for WASD compiler
 # Requires LLVM 18 to be installed
 
 [env]

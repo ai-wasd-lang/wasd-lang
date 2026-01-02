@@ -1,4 +1,4 @@
-//! Diagnostic reporting for Lux compiler errors.
+//! Diagnostic reporting for WASD compiler errors.
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 

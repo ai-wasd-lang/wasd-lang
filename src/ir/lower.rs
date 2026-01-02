@@ -1,9 +1,9 @@
-//! Lowering from AST to Lux IR.
+//! Lowering from AST to WASD IR.
 
-use super::lux_ir::*;
+use super::wasd_ir::*;
 use crate::parser as ast;
 
-/// Lower a program AST to Lux IR.
+/// Lower a program AST to WASD IR.
 pub fn lower_program(program: &ast::Program) -> IrModule {
     let mut lowerer = Lowerer::new();
     lowerer.lower(program)

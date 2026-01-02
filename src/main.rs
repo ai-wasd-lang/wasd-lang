@@ -1,6 +1,6 @@
-//! Lux Programming Language Compiler
+//! WASD Programming Language Compiler
 //!
-//! A compiler for the Lux language with explicit semantics,
+//! A compiler for the WASD language with explicit semantics,
 //! zero-cost abstractions, and memory safety.
 
 use clap::{Parser, Subcommand};
@@ -15,8 +15,8 @@ mod parser;
 mod types;
 
 #[derive(Parser)]
-#[command(name = "lux")]
-#[command(author, version, about = "The Lux programming language compiler", long_about = None)]
+#[command(name = "wasd")]
+#[command(author, version, about = "The WASD programming language compiler", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Compile a Lux source file to a binary
+    /// Compile a WASD source file to a binary
     Build {
         /// Input file path
         file: PathBuf,
@@ -34,19 +34,19 @@ enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Compile and run a Lux source file
+    /// Compile and run a WASD source file
     Run {
         /// Input file path
         file: PathBuf,
     },
 
-    /// Type check a Lux source file without compiling
+    /// Type check a WASD source file without compiling
     Check {
         /// Input file path
         file: PathBuf,
     },
 
-    /// Emit LLVM IR for a Lux source file
+    /// Emit LLVM IR for a WASD source file
     EmitIr {
         /// Input file path
         file: PathBuf,
@@ -56,7 +56,7 @@ enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Format a Lux source file
+    /// Format a WASD source file
     Fmt {
         /// Input file path
         file: PathBuf,

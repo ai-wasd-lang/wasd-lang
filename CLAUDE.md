@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lux is a new programming language designed with explicit semantics, zero-cost abstractions, and memory safety. It compiles to native code via LLVM.
+WASD is a new programming language designed with explicit semantics, zero-cost abstractions, and memory safety. It compiles to native code via LLVM.
 
 **Core philosophy:** Explicit over implicit, if it compiles it's correct, zero-cost abstractions, no hidden behavior.
 
@@ -16,11 +16,11 @@ cargo build                    # Debug build
 cargo build --release          # Release build
 
 # Run compiler
-cargo run -- build file.lux    # Compile a Lux file
-cargo run -- run file.lux      # Compile and execute
-cargo run -- check file.lux    # Type check only
-cargo run -- emit-ir file.lux  # Output LLVM IR
-cargo run -- fmt file.lux      # Format Lux code
+cargo run -- build file.wasd    # Compile a WASD file
+cargo run -- run file.wasd      # Compile and execute
+cargo run -- check file.wasd    # Type check only
+cargo run -- emit-ir file.wasd  # Output LLVM IR
+cargo run -- fmt file.wasd      # Format WASD code
 
 # Testing
 cargo test                     # Run all tests
@@ -39,7 +39,7 @@ cargo clippy                   # Lint Rust code
 The compiler follows a multi-phase pipeline:
 
 ```
-Source (.lux) → Lexer → Parser → Type Checker → Borrow Checker → Lux IR → LLVM IR → Binary
+Source (.wasd) → Lexer → Parser → Type Checker → Borrow Checker → WASD IR → LLVM IR → Binary
 ```
 
 ### Directory Structure
@@ -59,10 +59,10 @@ src/
 ├── borrow/              # Memory safety
 │   └── checker.rs       # Ownership & borrow validation
 ├── ir/                  # Intermediate representation
-│   ├── lux_ir.rs        # Lux IR definition
-│   └── lower.rs         # AST → Lux IR
+│   ├── wasd_ir.rs        # WASD IR definition
+│   └── lower.rs         # AST → WASD IR
 ├── codegen/             # Code generation
-│   └── llvm.rs          # Lux IR → LLVM IR (via inkwell)
+│   └── llvm.rs          # WASD IR → LLVM IR (via inkwell)
 └── errors/              # Diagnostics
     └── diagnostic.rs    # Error reporting (ariadne)
 ```
@@ -70,7 +70,7 @@ src/
 ## Key Implementation Details
 
 ### Indentation-Based Parsing
-Lux uses whitespace for blocks (like Python). The lexer tracks indent levels with a stack and emits `Indent`/`Dedent` tokens.
+WASD uses whitespace for blocks (like Python). The lexer tracks indent levels with a stack and emits `Indent`/`Dedent` tokens.
 
 ### Generics
 Monomorphized at compile time - each generic instantiation generates specialized code.
@@ -98,7 +98,7 @@ fn async_fetch() -> Data with [Async, IO]
 
 ## Language Syntax Quick Reference
 
-```lux
+```wasd
 // Variables
 let x = 5              // immutable, type inferred
 let mut y: i32 = 5     // mutable, explicit type
@@ -133,5 +133,5 @@ let content = read(path) else "default"  // fallback
 1. **Lexer/Parser** - Tokenization and AST construction
 2. **Type System** - Inference, checking, generics monomorphization
 3. **Borrow Checker** - Ownership tracking, reference validation
-4. **IR Generation** - AST → Lux IR → LLVM IR
+4. **IR Generation** - AST → WASD IR → LLVM IR
 5. **Codegen** - Native binary via LLVM

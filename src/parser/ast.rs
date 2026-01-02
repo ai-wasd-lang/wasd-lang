@@ -1,14 +1,14 @@
-//! Abstract Syntax Tree definitions for Lux.
+//! Abstract Syntax Tree definitions for WASD.
 
 use crate::lexer::Span;
 
-/// A complete Lux program.
+/// A complete WASD program.
 #[derive(Debug, Clone)]
 pub struct Program {
     pub items: Vec<Item>,
 }
 
-/// Top-level items in a Lux program.
+/// Top-level items in a WASD program.
 #[derive(Debug, Clone)]
 pub enum Item {
     Function(Function),
@@ -82,7 +82,7 @@ pub enum Type {
     Unit,
 }
 
-/// Statements in Lux.
+/// Statements in WASD.
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Let {
@@ -96,7 +96,7 @@ pub enum Stmt {
     Return(Option<Expr>, Span),
 }
 
-/// Expressions in Lux.
+/// Expressions in WASD.
 #[derive(Debug, Clone)]
 pub enum Expr {
     Int(i64, Span),

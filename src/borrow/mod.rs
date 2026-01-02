@@ -1,4 +1,4 @@
-//! Borrow checker module for Lux.
+//! Borrow checker module for WASD.
 //!
 //! Validates ownership and borrowing rules:
 //! - Many `&T` OR one `&mut T`, never both

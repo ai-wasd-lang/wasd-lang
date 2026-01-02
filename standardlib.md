@@ -1,4 +1,4 @@
-# Lux Standard Library
+# WASD Standard Library
 
 ---
 
@@ -464,9 +464,9 @@ Linux, macOS, Windows specific APIs when needed. Behind cfg flags.
 Raw syscall wrappers. Unsafe. Not for direct use. Foundation for higher layers.
 
 Platform-specific files:
-- linux.lux
-- macos.lux
-- windows.lux
+- linux.wasd
+- macos.wasd
+- windows.wasd
 
 ---
 

@@ -1,8 +1,8 @@
-//! Lux IR definitions.
+//! WASD IR definitions.
 //!
 //! A lower-level representation closer to machine operations.
 
-/// A Lux IR module (compilation unit).
+/// A WASD IR module (compilation unit).
 #[derive(Debug, Clone)]
 pub struct IrModule {
     pub functions: Vec<IrFunction>,

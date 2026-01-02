@@ -1,8 +1,8 @@
-//! Type representations for the Lux type system.
+//! Type representations for the WASD type system.
 
 /// Internal type representation used during type checking.
 #[derive(Debug, Clone, PartialEq)]
-pub enum LuxType {
+pub enum WasdType {
     /// Primitive integer types
     I8,
     I16,
@@ -25,19 +25,19 @@ pub enum LuxType {
     /// Named user-defined type
     Named(String),
     /// Generic type with parameters
-    Generic(String, Vec<LuxType>),
+    Generic(String, Vec<WasdType>),
     /// Reference type
-    Ref(Box<LuxType>, bool), // (inner, is_mut)
+    Ref(Box<WasdType>, bool), // (inner, is_mut)
     /// Heap-allocated type
-    Heap(Box<LuxType>),
+    Heap(Box<WasdType>),
     /// Reference-counted type
-    Rc(Box<LuxType>),
+    Rc(Box<WasdType>),
     /// Atomically reference-counted type
-    Arc(Box<LuxType>),
+    Arc(Box<WasdType>),
     /// Function type
     Function {
-        params: Vec<LuxType>,
-        ret: Box<LuxType>,
+        params: Vec<WasdType>,
+        ret: Box<WasdType>,
         effects: Vec<String>,
     },
     /// Type variable for inference
@@ -46,24 +46,24 @@ pub enum LuxType {
     Unknown,
 }
 
-impl LuxType {
+impl WasdType {
     /// Check if this type is a primitive type.
     pub fn is_primitive(&self) -> bool {
         matches!(
             self,
-            LuxType::I8
-                | LuxType::I16
-                | LuxType::I32
-                | LuxType::I64
-                | LuxType::U8
-                | LuxType::U16
-                | LuxType::U32
-                | LuxType::U64
-                | LuxType::F32
-                | LuxType::F64
-                | LuxType::Bool
-                | LuxType::String
-                | LuxType::Unit
+            WasdType::I8
+                | WasdType::I16
+                | WasdType::I32
+                | WasdType::I64
+                | WasdType::U8
+                | WasdType::U16
+                | WasdType::U32
+                | WasdType::U64
+                | WasdType::F32
+                | WasdType::F64
+                | WasdType::Bool
+                | WasdType::String
+                | WasdType::Unit
         )
     }
 
@@ -71,17 +71,17 @@ impl LuxType {
     pub fn is_copy(&self) -> bool {
         matches!(
             self,
-            LuxType::I8
-                | LuxType::I16
-                | LuxType::I32
-                | LuxType::I64
-                | LuxType::U8
-                | LuxType::U16
-                | LuxType::U32
-                | LuxType::U64
-                | LuxType::F32
-                | LuxType::F64
-                | LuxType::Bool
+            WasdType::I8
+                | WasdType::I16
+                | WasdType::I32
+                | WasdType::I64
+                | WasdType::U8
+                | WasdType::U16
+                | WasdType::U32
+                | WasdType::U64
+                | WasdType::F32
+                | WasdType::F64
+                | WasdType::Bool
         )
     }
 }

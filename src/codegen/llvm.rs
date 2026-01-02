@@ -1,4 +1,4 @@
-//! LLVM code generation for Lux IR.
+//! LLVM code generation for WASD IR.
 
 use crate::ir::*;
 use inkwell::builder::Builder;
@@ -13,7 +13,7 @@ use inkwell::OptimizationLevel;
 use std::collections::HashMap;
 use std::path::Path;
 
-/// LLVM code generator for Lux.
+/// LLVM code generator for WASD.
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
     module: Module<'ctx>,

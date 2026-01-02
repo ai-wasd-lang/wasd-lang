@@ -1,4 +1,4 @@
-# Lux Features
+# WASD Features
 
 ---
 
@@ -314,7 +314,7 @@ macro vec!($($elem:expr),*) -> Vec
 
 ## Build System
 
-### Project File: `lux.toml`
+### Project File: `wasd.toml`
 ```toml
 [package]
 name = "myproject"
@@ -323,7 +323,7 @@ edition = "2024"
 
 [dependencies]
 http = "1.2.3"
-json = { git = "https://github.com/lux/json" }
+json = { git = "https://github.com/wasd/json" }
 local = { path = "../local" }
 
 [dev-dependencies]
@@ -342,23 +342,23 @@ features = ["iocp"]
 
 ### CLI Commands
 ```bash
-lux new project           # create project
-lux init                  # init in current dir
-lux build                 # compile
-lux build --release       # optimized build
-lux run                   # compile and run
-lux run --release         # run optimized
-lux test                  # run tests
-lux test --filter name    # filter tests
-lux bench                 # run benchmarks
-lux check                 # type check only
-lux clean                 # remove build artifacts
-lux fmt                   # format code
-lux lint                  # run linter
-lux doc                   # generate docs
-lux doc --open            # generate and open docs
-lux publish               # publish to registry
-lux update                # update dependencies
+wasd new project           # create project
+wasd init                  # init in current dir
+wasd build                 # compile
+wasd build --release       # optimized build
+wasd run                   # compile and run
+wasd run --release         # run optimized
+wasd test                  # run tests
+wasd test --filter name    # filter tests
+wasd bench                 # run benchmarks
+wasd check                 # type check only
+wasd clean                 # remove build artifacts
+wasd fmt                   # format code
+wasd lint                  # run linter
+wasd doc                   # generate docs
+wasd doc --open            # generate and open docs
+wasd publish               # publish to registry
+wasd update                # update dependencies
 ```
 
 ### Workspaces
@@ -389,7 +389,7 @@ async = ["runtime"]
 - Optional dependencies
 
 ### Lock File
-- `lux.lock` — exact versions
+- `wasd.lock` — exact versions
 - Reproducible builds
 
 ### Private Registries
@@ -465,8 +465,8 @@ fn test_fetch()
 
 ### Coverage
 ```bash
-lux test --coverage
-lux test --coverage --html
+wasd test --coverage
+wasd test --coverage --html
 ```
 - Line coverage
 - Branch coverage
@@ -494,9 +494,9 @@ bench_sort_large  ... 45,678 ns/iter (+/- 1,234)
 
 ### Comparison
 ```bash
-lux bench --save baseline
+wasd bench --save baseline
 # make changes
-lux bench --compare baseline
+wasd bench --compare baseline
 ```
 
 ---
@@ -505,8 +505,8 @@ lux bench --compare baseline
 
 ### Debug Builds
 ```bash
-lux build           # debug by default
-lux build --release # optimized
+wasd build           # debug by default
+wasd build --release # optimized
 ```
 - No optimization
 - Debug symbols
@@ -530,7 +530,7 @@ dbg!(a, b, c)              // multiple values
 ```
 Output:
 ```
-[src/main.lux:42] expression = value
+[src/main.wasd:42] expression = value
 ```
 
 ### Breakpoints in Code
@@ -557,7 +557,7 @@ print("pretty: {x:#?}")    // pretty debug
 
 ### CPU Profiling
 ```bash
-lux run --profile cpu
+wasd run --profile cpu
 ```
 - Sampling profiler
 - Flame graphs
@@ -565,7 +565,7 @@ lux run --profile cpu
 
 ### Memory Profiling
 ```bash
-lux run --profile memory
+wasd run --profile memory
 ```
 - Allocation tracking
 - Leak detection
@@ -707,14 +707,14 @@ fn add(a: i32, b: i32) -> i32
 
 ### Doc Generation
 ```bash
-lux doc              # generate
-lux doc --open       # generate and open browser
-lux doc --json       # machine-readable
+wasd doc              # generate
+wasd doc --open       # generate and open browser
+wasd doc --json       # machine-readable
 ```
 
 ### Doc Tests
 ```bash
-lux test --doc       # run examples in docs
+wasd test --doc       # run examples in docs
 ```
 
 ---
@@ -723,12 +723,12 @@ lux test --doc       # run examples in docs
 
 ### Formatter
 ```bash
-lux fmt              # format all
-lux fmt --check      # check only
-lux fmt src/main.lux # specific file
+wasd fmt              # format all
+wasd fmt --check      # check only
+wasd fmt src/main.wasd # specific file
 ```
 
-### Configuration: `luxfmt.toml`
+### Configuration: `wasdfmt.toml`
 ```toml
 indent = 4
 max_line_length = 100
@@ -745,8 +745,8 @@ trailing_commas = true
 
 ### Linter
 ```bash
-lux lint             # run linter
-lux lint --fix       # auto-fix
+wasd lint             # run linter
+wasd lint --fix       # auto-fix
 ```
 
 ### Built-in Lints
@@ -801,7 +801,7 @@ mod important
 
 ### Interactive Mode
 ```bash
-lux repl
+wasd repl
 ```
 ```
 >>> let x = 5
@@ -839,13 +839,13 @@ fn main()
 ### Exporting
 ```
 #[export]
-fn lux_function(x: i32) -> i32
+fn wasd_function(x: i32) -> i32
     x * 2
 ```
 
 ### Bindgen (v2)
 ```bash
-lux bindgen header.h -o bindings.lux
+wasd bindgen header.h -o bindings.wasd
 ```
 
 ---
@@ -854,10 +854,10 @@ lux bindgen header.h -o bindings.lux
 
 ### Targets
 ```bash
-lux build --target x86_64-linux
-lux build --target aarch64-linux
-lux build --target x86_64-windows
-lux build --target wasm32
+wasd build --target x86_64-linux
+wasd build --target aarch64-linux
+wasd build --target x86_64-windows
+wasd build --target wasm32
 ```
 
 ### Target Configuration
@@ -875,7 +875,7 @@ linker = "aarch64-linux-gnu-gcc"
 
 ### WASM Target
 ```bash
-lux build --target wasm32
+wasd build --target wasm32
 ```
 
 ### WASM Features
@@ -949,4 +949,4 @@ std = false
 
 ---
 
-**Lux: Simple. Fast. Safe. Explicit.**
+**WASD: Simple. Fast. Safe. Explicit.**

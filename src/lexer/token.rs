@@ -1,4 +1,4 @@
-//! Token definitions for the Lux lexer.
+//! Token definitions for the WASD lexer.
 
 use std::fmt;
 
@@ -15,7 +15,7 @@ impl Span {
     }
 }
 
-/// Tokens produced by the Lux lexer.
+/// Tokens produced by the WASD lexer.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Literals

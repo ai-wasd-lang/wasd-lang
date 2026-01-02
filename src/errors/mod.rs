@@ -1,4 +1,4 @@
-//! Error reporting module for Lux.
+//! Error reporting module for WASD.
 //!
 //! Uses ariadne for pretty error messages.
 

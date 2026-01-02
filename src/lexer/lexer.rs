@@ -1,8 +1,8 @@
-//! Lexer implementation for Lux source code.
+//! Lexer implementation for WASD source code.
 
 use super::token::{Span, Token};
 
-/// The Lux lexer, which tokenizes source code.
+/// The WASD lexer, which tokenizes source code.
 pub struct Lexer<'a> {
     source: &'a str,
     chars: std::iter::Peekable<std::str::CharIndices<'a>>,

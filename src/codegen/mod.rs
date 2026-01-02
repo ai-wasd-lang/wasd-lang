@@ -1,6 +1,6 @@
-//! Code generation module for Lux.
+//! Code generation module for WASD.
 //!
-//! Compiles Lux IR to LLVM IR using inkwell.
+//! Compiles WASD IR to LLVM IR using inkwell.
 
 mod llvm;
 

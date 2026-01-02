@@ -1,9 +1,9 @@
-//! Recursive descent parser for Lux.
+//! Recursive descent parser for WASD.
 
 use super::ast::*;
 use crate::lexer::{Lexer, Span, Token};
 
-/// The Lux parser.
+/// The WASD parser.
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     tokens: Vec<(Token, Span)>,

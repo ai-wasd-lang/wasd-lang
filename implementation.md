@@ -1,4 +1,4 @@
-# Lux Implementation Guide
+# WASD Implementation Guide
 
 ---
 
@@ -11,7 +11,7 @@
 | Parser | Hand-written recursive descent |
 | AST | Rust enums and structs |
 | Type checking | Custom implementation |
-| IR | Custom Lux IR → LLVM IR |
+| IR | Custom WASD IR → LLVM IR |
 | LLVM bindings | `inkwell` crate (safe LLVM wrapper) |
 | Testing | Rust's built-in `#[test]` |
 | CLI | `clap` crate |
@@ -21,7 +21,7 @@
 ## Project Structure
 
 ```
-lux/
+wasd/
 ├── Cargo.toml
 ├── src/
 │   ├── main.rs           # CLI entry point
@@ -42,11 +42,11 @@ lux/
 │   │   └── checker.rs    # Borrow checker
 │   ├── ir/
 │   │   ├── mod.rs
-│   │   ├── lux_ir.rs     # Lux intermediate representation
-│   │   └── lower.rs      # AST → Lux IR
+│   │   ├── wasd_ir.rs     # WASD intermediate representation
+│   │   └── lower.rs      # AST → WASD IR
 │   ├── codegen/
 │   │   ├── mod.rs
-│   │   └── llvm.rs       # Lux IR → LLVM IR
+│   │   └── llvm.rs       # WASD IR → LLVM IR
 │   └── errors/
 │       ├── mod.rs
 │       └── diagnostic.rs # Error reporting
@@ -203,11 +203,11 @@ Start simple. Full lifetime inference is complex — defer edge cases.
 
 ---
 
-## Phase 5: Lux IR
+## Phase 5: WASD IR
 
 **Intermediate representation between AST and LLVM:**
 ```rust
-enum LuxIR {
+enum WASDIR {
     // Values
     Const(Constant),
     Load(Place),
@@ -230,7 +230,7 @@ enum LuxIR {
 }
 ```
 
-Why Lux IR before LLVM IR:
+Why WASD IR before LLVM IR:
 - Easier to optimize
 - Easier to debug
 - Cleaner separation
@@ -254,7 +254,7 @@ struct CodeGen<'ctx> {
 ```
 
 **Mapping:**
-| Lux | LLVM |
+| WASD | LLVM |
 |-----|------|
 | `i32` | `context.i32_type()` |
 | `struct` | `context.struct_type(&fields, false)` |
@@ -296,12 +296,12 @@ fn codegen_add() {
 ## CLI Interface
 
 ```bash
-lux build file.lux           # compile to binary
-lux build file.lux -o out    # specify output
-lux run file.lux             # compile and run
-lux check file.lux           # type check only
-lux emit-ir file.lux         # output LLVM IR
-lux fmt file.lux             # format code
+wasd build file.wasd           # compile to binary
+wasd build file.wasd -o out    # specify output
+wasd run file.wasd             # compile and run
+wasd check file.wasd           # type check only
+wasd emit-ir file.wasd         # output LLVM IR
+wasd fmt file.wasd             # format code
 ```
 
 ---
@@ -352,8 +352,8 @@ Week 4:
 └── Borrow tests
 
 Week 5:
-├── Lux IR design
-├── AST → Lux IR lowering
+├── WASD IR design
+├── AST → WASD IR lowering
 ├── IR optimization (basic)
 └── IR tests
 
@@ -392,7 +392,7 @@ Week 7:
 Use `ariadne` for pretty errors:
 ```
 Error: Type mismatch
-   ┌─ src/main.lux:5:12
+   ┌─ src/main.wasd:5:12
    │
  5 │     let x: i32 = "hello"
    │            ───   ^^^^^^^ expected i32, found String
@@ -415,4 +415,4 @@ Error: Type mismatch
 
 ---
 
-**Build Lux. Make it compile. Make it run.**
+**Build WASD. Make it compile. Make it run.**

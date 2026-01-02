@@ -1,8 +1,8 @@
 [package]
-name = "lux"
+name = "wasd"
 version = "0.1.0"
 edition = "2021"
-description = "Lux programming language compiler"
+description = "WASD programming language compiler"
 license = "MIT"
 
 [dependencies]

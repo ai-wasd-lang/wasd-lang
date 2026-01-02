@@ -1,4 +1,4 @@
-# Lux GPU Programming
+# WASD GPU Programming
 
 ---
 
@@ -39,7 +39,7 @@ GPU hardware. Query capabilities. Select for execution.
 GPU memory. Typed. Explicit allocation and deallocation.
 
 ### Kernel
-Function that runs on GPU. Marked with `#[kernel]`. Restricted subset of Lux.
+Function that runs on GPU. Marked with `#[kernel]`. Restricted subset of WASD.
 
 ### Launch
 Execute kernel. Specify grid and block dimensions.
@@ -272,26 +272,26 @@ Timing. Occupancy. Memory bandwidth.
 
 ```
 std/gpu/
-├── mod.lux           # public API
-├── device.lux        # device management
-├── buffer.lux        # GPU buffers
-├── kernel.lux        # kernel types and launch
-├── sync.lux          # synchronization
-├── memory.lux        # memory management
-├── types.lux         # vec2, mat4, etc
-├── parallel.lux      # high-level parallel ops
+├── mod.wasd           # public API
+├── device.wasd        # device management
+├── buffer.wasd        # GPU buffers
+├── kernel.wasd        # kernel types and launch
+├── sync.wasd          # synchronization
+├── memory.wasd        # memory management
+├── types.wasd         # vec2, mat4, etc
+├── parallel.wasd      # high-level parallel ops
 ├── backends/
-│   ├── mod.lux
-│   ├── wgpu.lux
-│   ├── cuda.lux
-│   ├── metal.lux
-│   └── opencl.lux
+│   ├── mod.wasd
+│   ├── wgpu.wasd
+│   ├── cuda.wasd
+│   ├── metal.wasd
+│   └── opencl.wasd
 └── graphics/
-    ├── mod.lux
-    ├── shader.lux
-    ├── pipeline.lux
-    ├── texture.lux
-    └── render.lux
+    ├── mod.wasd
+    ├── shader.wasd
+    ├── pipeline.wasd
+    ├── texture.wasd
+    └── render.wasd
 ```
 
 ---
@@ -331,7 +331,7 @@ std/gpu/
 ## Kernel Compilation Pipeline
 
 ```
-#[kernel] fn in Lux
+#[kernel] fn in WASD
     ↓
 Parse and validate restrictions
     ↓
@@ -367,4 +367,4 @@ Compiler tracks GPU usage.
 
 ---
 
-**GPU programming in Lux: Safe. Explicit. Fast. Same language.**
+**GPU programming in WASD: Safe. Explicit. Fast. Same language.**

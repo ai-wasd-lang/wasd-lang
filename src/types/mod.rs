@@ -1,4 +1,4 @@
-//! Type system module for Lux.
+//! Type system module for WASD.
 //!
 //! Handles type inference, type checking, and generic monomorphization.
 
