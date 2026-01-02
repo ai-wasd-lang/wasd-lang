@@ -16,6 +16,11 @@ inkwell = { version = "0.5", features = ["llvm18-0"] }
 ariadne = "0.5"
 thiserror = "2.0"
 
+# LSP support
+tower-lsp = "0.20"
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"
+
 [dev-dependencies]
 # Snapshot testing
 insta = { version = "1.42", features = ["yaml"] }

@@ -17,6 +17,7 @@ mod errors;
 mod fmt;
 mod ir;
 mod lexer;
+mod lsp;
 mod module;
 mod parser;
 mod repl;
@@ -85,6 +86,9 @@ enum Commands {
 
     /// Start an interactive REPL session
     Repl,
+
+    /// Start the Language Server Protocol server
+    Lsp,
 }
 
 fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> {
@@ -301,6 +305,12 @@ fn main() {
         Commands::Repl => {
             let mut repl = repl::Repl::new();
             repl.run()
+        }
+        Commands::Lsp => {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create Tokio runtime")
+                .block_on(lsp::run_server());
+            Ok(())
         }
     };
 
