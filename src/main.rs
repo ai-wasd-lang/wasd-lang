@@ -14,6 +14,7 @@ use std::process::Command;
 mod borrow;
 mod codegen;
 mod errors;
+mod fmt;
 mod ir;
 mod lexer;
 mod module;
@@ -235,6 +236,25 @@ fn emit_ir(file: &PathBuf, output: Option<&PathBuf>) -> Result<(), String> {
     Ok(())
 }
 
+fn format_file(file: &PathBuf, check_only: bool) -> Result<(), String> {
+    let source = fs::read_to_string(file).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    let formatted = fmt::format_source(&source)?;
+
+    if check_only {
+        if source == formatted {
+            println!("File is properly formatted: {:?}", file);
+            Ok(())
+        } else {
+            Err(format!("File needs formatting: {:?}", file))
+        }
+    } else {
+        fs::write(file, &formatted).map_err(|e| format!("Failed to write file: {}", e))?;
+        println!("Formatted: {:?}", file);
+        Ok(())
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -277,11 +297,7 @@ fn main() {
         },
         Commands::Check { file } => check(&file),
         Commands::EmitIr { file, output } => emit_ir(&file, output.as_ref()),
-        Commands::Fmt { file, check: _ } => {
-            // TODO: Implement formatter
-            println!("Formatter not yet implemented for {:?}", file);
-            Ok(())
-        }
+        Commands::Fmt { file, check } => format_file(&file, check),
         Commands::Repl => {
             let mut repl = repl::Repl::new();
             repl.run()
