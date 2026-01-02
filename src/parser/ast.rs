@@ -37,6 +37,7 @@ pub struct UseStmt {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub generics: Vec<String>,
     pub params: Vec<Param>,
     pub return_type: Option<Type>,
     pub effects: Vec<String>,
@@ -174,7 +175,8 @@ pub enum Expr {
     Ident(String, Span),
     Binary(Box<Expr>, BinOp, Box<Expr>, Span),
     Unary(UnaryOp, Box<Expr>, Span),
-    Call(Box<Expr>, Vec<Expr>, Span),
+    /// Call with optional generic type arguments: callee, type_args, args, span
+    Call(Box<Expr>, Vec<Type>, Vec<Expr>, Span),
     FieldAccess(Box<Expr>, String, Span),
     StructConstruct {
         name: String,

@@ -5,6 +5,8 @@
 //! - No dangling references
 //! - No use after move
 
-mod checker;
+pub mod checker;
+#[cfg(test)]
+mod checker_tests;
 
 pub use checker::BorrowChecker;

@@ -1,0 +1,179 @@
+//! Item parsing for WASD (functions, use statements, parameters).
+
+use super::ast::*;
+use super::Parser;
+use crate::lexer::Token;
+
+impl<'a> Parser<'a> {
+    /// Parse a top-level item.
+    pub(super) fn parse_item(&mut self) -> Result<Item, String> {
+        match self.peek() {
+            Token::Use => self.parse_use().map(Item::Use),
+            Token::Fn => self.parse_function().map(Item::Function),
+            Token::Struct => self.parse_struct().map(Item::Struct),
+            Token::Enum => self.parse_enum().map(Item::Enum),
+            Token::Trait => self.parse_trait().map(Item::Trait),
+            Token::Impl => self.parse_impl().map(Item::Impl),
+            _ => Err(format!("Expected item, found {:?}", self.peek())),
+        }
+    }
+
+    /// Parse a use statement.
+    pub(super) fn parse_use(&mut self) -> Result<UseStmt, String> {
+        let span = self.current_span();
+        self.expect(&Token::Use)?;
+
+        // Parse the path: std.io.print or std.io
+        let mut path = Vec::new();
+        path.push(self.expect_ident()?);
+
+        let mut wildcard = false;
+
+        while self.check(&Token::Dot) {
+            self.advance(); // consume the dot
+
+            // Check for wildcard: std.io.*
+            if self.check(&Token::Star) {
+                self.advance();
+                wildcard = true;
+                break;
+            }
+
+            path.push(self.expect_ident()?);
+        }
+
+        // Check for alias: use std.io.print as p
+        let alias = if self.check(&Token::As) {
+            self.advance();
+            Some(self.expect_ident()?)
+        } else {
+            None
+        };
+
+        // Consume optional newline
+        self.skip_newlines();
+
+        Ok(UseStmt {
+            path,
+            wildcard,
+            alias,
+            span,
+        })
+    }
+
+    /// Parse a function definition.
+    pub(super) fn parse_function(&mut self) -> Result<Function, String> {
+        let start = self.current_span();
+        self.expect(&Token::Fn)?;
+        let name = self.expect_ident()?;
+
+        // Parse optional generic parameters [T, U, ...]
+        let generics = if self.check(&Token::LBracket) {
+            self.advance();
+            let mut params = Vec::new();
+            while !self.check(&Token::RBracket) {
+                params.push(self.expect_ident()?);
+                if !self.check(&Token::RBracket) {
+                    self.expect(&Token::Comma)?;
+                }
+            }
+            self.expect(&Token::RBracket)?;
+            params
+        } else {
+            Vec::new()
+        };
+
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+
+        let return_type = if self.check(&Token::Arrow) {
+            self.advance();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        let effects = if self.check(&Token::With) {
+            self.advance();
+            self.parse_effects()?
+        } else {
+            Vec::new()
+        };
+
+        self.skip_newlines();
+        self.expect(&Token::Indent)?;
+        let body = self.parse_block()?;
+
+        Ok(Function {
+            name,
+            generics,
+            params,
+            return_type,
+            effects,
+            body,
+            span: start,
+        })
+    }
+
+    /// Parse function parameters.
+    pub(super) fn parse_params(&mut self) -> Result<Vec<Param>, String> {
+        let mut params = Vec::new();
+        while !self.check(&Token::RParen) {
+            // Handle `self` as a special parameter
+            if self.check(&Token::SelfKeyword) {
+                let span = self.current_span();
+                self.advance();
+                params.push(Param {
+                    name: "self".to_string(),
+                    ty: Type::Named("Self".to_string()), // Placeholder type
+                    span,
+                });
+            } else {
+                let name = self.expect_ident()?;
+                self.expect(&Token::Colon)?;
+                let ty = self.parse_type()?;
+                params.push(Param {
+                    name,
+                    ty,
+                    span: self.current_span(),
+                });
+            }
+            if !self.check(&Token::RParen) {
+                self.expect(&Token::Comma)?;
+            }
+        }
+        Ok(params)
+    }
+
+    /// Parse generic type parameters.
+    pub(super) fn parse_generics(&mut self) -> Result<Vec<String>, String> {
+        if !self.check(&Token::LBracket) {
+            return Ok(Vec::new());
+        }
+        self.advance();
+        let mut generics = Vec::new();
+        while !self.check(&Token::RBracket) {
+            generics.push(self.expect_ident()?);
+            if !self.check(&Token::RBracket) {
+                self.expect(&Token::Comma)?;
+            }
+        }
+        self.expect(&Token::RBracket)?;
+        Ok(generics)
+    }
+
+    /// Parse effect annotations.
+    pub(super) fn parse_effects(&mut self) -> Result<Vec<String>, String> {
+        self.expect(&Token::LBracket)?;
+        let mut effects = Vec::new();
+        while !self.check(&Token::RBracket) {
+            effects.push(self.expect_ident()?);
+            if !self.check(&Token::RBracket) {
+                self.expect(&Token::Comma)?;
+            }
+        }
+        self.expect(&Token::RBracket)?;
+        Ok(effects)
+    }
+}

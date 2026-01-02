@@ -3,9 +3,7 @@
 //! This pass specializes generic functions and types for each concrete type
 //! instantiation, replacing generic parameters with their actual types.
 
-use crate::parser::{
-    EnumDef, Expr, Field, Function, Item, Param, Pattern, Program, Stmt, StructDef, Type, Variant,
-};
+use crate::parser::{EnumDef, Expr, Function, Item, Program, Stmt, StructDef, Type};
 use std::collections::{HashMap, HashSet};
 
 /// A monomorphization key: the generic name plus concrete type arguments.
@@ -57,10 +55,11 @@ fn type_to_string(ty: &Type) -> String {
 /// The monomorphizer collects generic instantiations and generates specialized versions.
 pub struct Monomorphizer {
     /// Generic struct definitions
-    generic_structs: HashMap<String, StructDef>,
+    pub(super) generic_structs: HashMap<String, StructDef>,
     /// Generic enum definitions
-    generic_enums: HashMap<String, EnumDef>,
+    pub(super) generic_enums: HashMap<String, EnumDef>,
     /// Generic function definitions
+    #[allow(dead_code)]
     generic_functions: HashMap<String, Function>,
     /// Collected struct instantiations that need specialization
     struct_instantiations: HashSet<MonoKey>,
@@ -99,9 +98,8 @@ impl Monomorphizer {
 
         // Second pass: collect instantiations by walking the AST
         for item in &program.items {
-            match item {
-                Item::Function(f) => self.collect_function_instantiations(f),
-                _ => {}
+            if let Item::Function(f) = item {
+                self.collect_function_instantiations(f);
             }
         }
 
@@ -206,8 +204,11 @@ impl Monomorphizer {
                 self.collect_expr_instantiations(r);
             }
             Expr::Unary(_, e, _) => self.collect_expr_instantiations(e),
-            Expr::Call(callee, args, _) => {
+            Expr::Call(callee, type_args, args, _) => {
                 self.collect_expr_instantiations(callee);
+                for type_arg in type_args {
+                    self.collect_type_instantiations(type_arg);
+                }
                 for arg in args {
                     self.collect_expr_instantiations(arg);
                 }
@@ -293,323 +294,6 @@ impl Monomorphizer {
             _ => {}
         }
     }
-
-    fn specialize_struct(&self, generic_def: &StructDef, type_args: &[Type]) -> StructDef {
-        // Create substitution map: generic param -> concrete type
-        let mut substitutions: HashMap<String, Type> = HashMap::new();
-        for (i, generic_param) in generic_def.generics.iter().enumerate() {
-            if let Some(concrete_type) = type_args.get(i) {
-                substitutions.insert(generic_param.clone(), concrete_type.clone());
-            }
-        }
-
-        // Create specialized fields
-        let fields: Vec<Field> = generic_def
-            .fields
-            .iter()
-            .map(|f| Field {
-                name: f.name.clone(),
-                ty: self.substitute_type(&f.ty, &substitutions),
-                span: f.span.clone(),
-            })
-            .collect();
-
-        // Create mangled name
-        let key = MonoKey::new(generic_def.name.clone(), type_args.to_vec());
-
-        StructDef {
-            name: key.mangled_name(),
-            generics: Vec::new(), // No longer generic
-            fields,
-            span: generic_def.span.clone(),
-        }
-    }
-
-    fn specialize_enum(&self, generic_def: &EnumDef, type_args: &[Type]) -> EnumDef {
-        let mut substitutions: HashMap<String, Type> = HashMap::new();
-        for (i, generic_param) in generic_def.generics.iter().enumerate() {
-            if let Some(concrete_type) = type_args.get(i) {
-                substitutions.insert(generic_param.clone(), concrete_type.clone());
-            }
-        }
-
-        let variants: Vec<Variant> = generic_def
-            .variants
-            .iter()
-            .map(|v| Variant {
-                name: v.name.clone(),
-                fields: v
-                    .fields
-                    .iter()
-                    .map(|t| self.substitute_type(t, &substitutions))
-                    .collect(),
-                span: v.span.clone(),
-            })
-            .collect();
-
-        let key = MonoKey::new(generic_def.name.clone(), type_args.to_vec());
-
-        EnumDef {
-            name: key.mangled_name(),
-            generics: Vec::new(),
-            variants,
-            span: generic_def.span.clone(),
-        }
-    }
-
-    fn substitute_type(&self, ty: &Type, substitutions: &HashMap<String, Type>) -> Type {
-        match ty {
-            Type::Named(name) => {
-                // Check if this is a generic parameter that should be substituted
-                if let Some(concrete) = substitutions.get(name) {
-                    concrete.clone()
-                } else {
-                    ty.clone()
-                }
-            }
-            Type::Generic(name, args) => {
-                // Substitute in the type arguments
-                let new_args: Vec<Type> = args
-                    .iter()
-                    .map(|a| self.substitute_type(a, substitutions))
-                    .collect();
-
-                // Check if the base type is a generic parameter
-                if let Some(concrete) = substitutions.get(name) {
-                    // This shouldn't normally happen for Generic types
-                    concrete.clone()
-                } else {
-                    // Create specialized name
-                    let key = MonoKey::new(name.clone(), new_args.clone());
-                    Type::Named(key.mangled_name())
-                }
-            }
-            Type::Reference(inner, is_mut) => {
-                Type::Reference(Box::new(self.substitute_type(inner, substitutions)), *is_mut)
-            }
-            Type::Heap(inner) => {
-                Type::Heap(Box::new(self.substitute_type(inner, substitutions)))
-            }
-            Type::Rc(inner) => Type::Rc(Box::new(self.substitute_type(inner, substitutions))),
-            Type::Arc(inner) => Type::Arc(Box::new(self.substitute_type(inner, substitutions))),
-            Type::Function(params, ret) => {
-                let new_params: Vec<Type> = params
-                    .iter()
-                    .map(|p| self.substitute_type(p, substitutions))
-                    .collect();
-                let new_ret = self.substitute_type(ret, substitutions);
-                Type::Function(new_params, Box::new(new_ret))
-            }
-            Type::Unit => Type::Unit,
-        }
-    }
-
-    fn transform_function(&self, func: &Function) -> Function {
-        // Transform all types in the function to use specialized names
-        let params: Vec<Param> = func
-            .params
-            .iter()
-            .map(|p| Param {
-                name: p.name.clone(),
-                ty: self.transform_type(&p.ty),
-                span: p.span.clone(),
-            })
-            .collect();
-
-        let return_type = func.return_type.as_ref().map(|t| self.transform_type(t));
-
-        let body: Vec<Stmt> = func.body.iter().map(|s| self.transform_stmt(s)).collect();
-
-        Function {
-            name: func.name.clone(),
-            params,
-            return_type,
-            effects: func.effects.clone(),
-            body,
-            span: func.span.clone(),
-        }
-    }
-
-    fn transform_type(&self, ty: &Type) -> Type {
-        match ty {
-            Type::Generic(name, args) => {
-                // Transform to specialized name
-                let new_args: Vec<Type> = args.iter().map(|a| self.transform_type(a)).collect();
-                let key = MonoKey::new(name.clone(), new_args);
-                Type::Named(key.mangled_name())
-            }
-            Type::Reference(inner, is_mut) => {
-                Type::Reference(Box::new(self.transform_type(inner)), *is_mut)
-            }
-            Type::Heap(inner) => Type::Heap(Box::new(self.transform_type(inner))),
-            Type::Rc(inner) => Type::Rc(Box::new(self.transform_type(inner))),
-            Type::Arc(inner) => Type::Arc(Box::new(self.transform_type(inner))),
-            Type::Function(params, ret) => {
-                let new_params: Vec<Type> = params.iter().map(|p| self.transform_type(p)).collect();
-                let new_ret = self.transform_type(ret);
-                Type::Function(new_params, Box::new(new_ret))
-            }
-            _ => ty.clone(),
-        }
-    }
-
-    fn transform_stmt(&self, stmt: &Stmt) -> Stmt {
-        match stmt {
-            Stmt::Let {
-                name,
-                ty,
-                mutable,
-                value,
-                span,
-            } => Stmt::Let {
-                name: name.clone(),
-                ty: ty.as_ref().map(|t| self.transform_type(t)),
-                mutable: *mutable,
-                value: self.transform_expr(value),
-                span: span.clone(),
-            },
-            Stmt::Assign {
-                target,
-                value,
-                span,
-            } => Stmt::Assign {
-                target: self.transform_expr(target),
-                value: self.transform_expr(value),
-                span: span.clone(),
-            },
-            Stmt::Expr(e) => Stmt::Expr(self.transform_expr(e)),
-            Stmt::Return(Some(e), span) => Stmt::Return(Some(self.transform_expr(e)), span.clone()),
-            Stmt::Return(None, span) => Stmt::Return(None, span.clone()),
-            Stmt::While {
-                condition,
-                body,
-                span,
-            } => Stmt::While {
-                condition: self.transform_expr(condition),
-                body: body.iter().map(|s| self.transform_stmt(s)).collect(),
-                span: span.clone(),
-            },
-            Stmt::For {
-                var,
-                iterable,
-                body,
-                span,
-            } => Stmt::For {
-                var: var.clone(),
-                iterable: self.transform_expr(iterable),
-                body: body.iter().map(|s| self.transform_stmt(s)).collect(),
-                span: span.clone(),
-            },
-            Stmt::Break(span) => Stmt::Break(span.clone()),
-            Stmt::Continue(span) => Stmt::Continue(span.clone()),
-        }
-    }
-
-    fn transform_expr(&self, expr: &Expr) -> Expr {
-        match expr {
-            Expr::Int(n, span) => Expr::Int(*n, span.clone()),
-            Expr::Float(n, span) => Expr::Float(*n, span.clone()),
-            Expr::String(s, span) => Expr::String(s.clone(), span.clone()),
-            Expr::Bool(b, span) => Expr::Bool(*b, span.clone()),
-            Expr::Ident(name, span) => Expr::Ident(name.clone(), span.clone()),
-            Expr::Binary(l, op, r, span) => Expr::Binary(
-                Box::new(self.transform_expr(l)),
-                *op,
-                Box::new(self.transform_expr(r)),
-                span.clone(),
-            ),
-            Expr::Unary(op, e, span) => {
-                Expr::Unary(*op, Box::new(self.transform_expr(e)), span.clone())
-            }
-            Expr::Call(callee, args, span) => Expr::Call(
-                Box::new(self.transform_expr(callee)),
-                args.iter().map(|a| self.transform_expr(a)).collect(),
-                span.clone(),
-            ),
-            Expr::FieldAccess(base, field, span) => {
-                Expr::FieldAccess(Box::new(self.transform_expr(base)), field.clone(), span.clone())
-            }
-            Expr::StructConstruct { name, fields, span } => {
-                // TODO: Transform name if it's a generic instantiation
-                Expr::StructConstruct {
-                    name: name.clone(),
-                    fields: fields
-                        .iter()
-                        .map(|(n, e)| (n.clone(), self.transform_expr(e)))
-                        .collect(),
-                    span: span.clone(),
-                }
-            }
-            Expr::EnumConstruct {
-                enum_name,
-                variant,
-                value,
-                span,
-            } => Expr::EnumConstruct {
-                enum_name: enum_name.clone(),
-                variant: variant.clone(),
-                value: value.as_ref().map(|v| Box::new(self.transform_expr(v))),
-                span: span.clone(),
-            },
-            Expr::If(cond, then_branch, else_branch, span) => Expr::If(
-                Box::new(self.transform_expr(cond)),
-                then_branch.iter().map(|s| self.transform_stmt(s)).collect(),
-                else_branch
-                    .as_ref()
-                    .map(|stmts| stmts.iter().map(|s| self.transform_stmt(s)).collect()),
-                span.clone(),
-            ),
-            Expr::Match(value, arms, span) => Expr::Match(
-                Box::new(self.transform_expr(value)),
-                arms.iter()
-                    .map(|arm| crate::parser::MatchArm {
-                        pattern: self.transform_pattern(&arm.pattern),
-                        body: self.transform_expr(&arm.body),
-                        span: arm.span.clone(),
-                    })
-                    .collect(),
-                span.clone(),
-            ),
-            Expr::Block(stmts, span) => Expr::Block(
-                stmts.iter().map(|s| self.transform_stmt(s)).collect(),
-                span.clone(),
-            ),
-            Expr::HeapAlloc(e, span) => {
-                Expr::HeapAlloc(Box::new(self.transform_expr(e)), span.clone())
-            }
-            Expr::RcAlloc(e, span) => {
-                Expr::RcAlloc(Box::new(self.transform_expr(e)), span.clone())
-            }
-            Expr::ArcAlloc(e, span) => {
-                Expr::ArcAlloc(Box::new(self.transform_expr(e)), span.clone())
-            }
-            Expr::Lambda { params, body, span } => Expr::Lambda {
-                params: params
-                    .iter()
-                    .map(|p| Param {
-                        name: p.name.clone(),
-                        ty: self.transform_type(&p.ty),
-                        span: p.span.clone(),
-                    })
-                    .collect(),
-                body: Box::new(self.transform_expr(body)),
-                span: span.clone(),
-            },
-        }
-    }
-
-    fn transform_pattern(&self, pattern: &Pattern) -> Pattern {
-        match pattern {
-            Pattern::Wildcard(span) => Pattern::Wildcard(span.clone()),
-            Pattern::Ident(name, span) => Pattern::Ident(name.clone(), span.clone()),
-            Pattern::Literal(e) => Pattern::Literal(self.transform_expr(e)),
-            Pattern::Constructor(name, patterns, span) => Pattern::Constructor(
-                name.clone(),
-                patterns.iter().map(|p| self.transform_pattern(p)).collect(),
-                span.clone(),
-            ),
-        }
-    }
 }
 
 impl Default for Monomorphizer {
@@ -622,60 +306,4 @@ impl Default for Monomorphizer {
 pub fn monomorphize(program: &Program) -> Program {
     let mut mono = Monomorphizer::new();
     mono.monomorphize(program)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::parser::Parser;
-
-    #[test]
-    fn test_mangled_name() {
-        let key = MonoKey::new(
-            "Option".to_string(),
-            vec![Type::Named("i64".to_string())],
-        );
-        assert_eq!(key.mangled_name(), "Option_i64");
-    }
-
-    #[test]
-    fn test_mangled_name_multiple_args() {
-        let key = MonoKey::new(
-            "Map".to_string(),
-            vec![
-                Type::Named("String".to_string()),
-                Type::Named("i32".to_string()),
-            ],
-        );
-        assert_eq!(key.mangled_name(), "Map_String_i32");
-    }
-
-    #[test]
-    fn test_monomorphize_generic_struct() {
-        let source = r#"struct Box[T]
-    value: T
-
-fn main()
-    let x: Box[i64] = Box(value: 42)
-"#;
-        let mut parser = Parser::new(source);
-        let program = parser.parse().unwrap();
-
-        let mono_program = monomorphize(&program);
-
-        // Should have specialized Box_i64 struct
-        let struct_names: Vec<_> = mono_program
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let Item::Struct(s) = item {
-                    Some(s.name.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        assert!(struct_names.contains(&"Box_i64".to_string()));
-    }
 }

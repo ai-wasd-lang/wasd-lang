@@ -75,6 +75,8 @@ pub enum IrInst {
         dest: String,
         ptr: String,
         indices: Vec<IrValue>,
+        /// The base type of the pointer (for struct field access)
+        base_type: Option<IrType>,
     },
     /// Heap allocation (malloc)
     HeapAlloc {

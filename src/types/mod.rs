@@ -2,9 +2,16 @@
 //!
 //! Handles type inference, type checking, and generic monomorphization.
 
-mod checker;
+pub mod checker;
+#[cfg(test)]
+mod checker_tests;
+mod inference;
 pub mod monomorphize;
-mod types;
+mod mono_specialize;
+mod mono_transform;
+#[cfg(test)]
+mod monomorphize_tests;
+pub mod types;
 
 pub use checker::TypeChecker;
 pub use monomorphize::{monomorphize, Monomorphizer};

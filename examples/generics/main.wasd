@@ -1,11 +1,26 @@
-// Generics example - simplified for current compiler support
+// Generics example - demonstrating generic functions
+
+// A generic identity function
+fn identity[T](x: T) -> T
+    x
+
+// A generic function that takes two arguments and returns the first
+fn first[T](a: T, b: i64) -> T
+    a
+
+// A generic function that returns the second argument
+fn second[T](a: i64, b: T) -> T
+    b
 
 fn main() -> i64
-    // Generic struct instantiation requires GEP support
-    // For now, show basic value handling
+    // Call identity with i64
+    let result1 = identity[i64](42)
 
-    let int_value = 42
-    let other_value = 100
+    // Call first - returns the first argument
+    let result2 = first[i64](10, 20)
 
-    // Simulating what generics would do
-    int_value
+    // Call second - returns the second argument
+    let result3 = second[i64](30, 50)
+
+    // 42 + 10 + 50 = 102
+    result1 + result2 + result3

@@ -231,16 +231,32 @@ fn main() {
             Err(e) => Err(e),
         },
         Commands::Run { file } => match compile(&file, None) {
-            Ok(exe_path) => match Command::new(&exe_path).status() {
-                Ok(status) => {
-                    if !status.success() {
-                        Err(format!("Program exited with code: {:?}", status.code()))
-                    } else {
+            Ok(exe_path) => {
+                // Use absolute path or prefix with ./ to ensure the executable is found
+                let exe_path = if exe_path.is_relative() && !exe_path.starts_with(".") {
+                    PathBuf::from(".").join(&exe_path)
+                } else {
+                    exe_path
+                };
+                match Command::new(&exe_path).status() {
+                    Ok(status) => {
+                        // Non-zero exit codes are expected for programs that return values
+                        // Only report if the program was killed by a signal
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::process::ExitStatusExt;
+                            if status.signal().is_some() {
+                                Err(format!("Program killed by signal: {:?}", status.signal()))
+                            } else {
+                                Ok(())
+                            }
+                        }
+                        #[cfg(not(unix))]
                         Ok(())
                     }
+                    Err(e) => Err(format!("Failed to run: {}", e)),
                 }
-                Err(e) => Err(format!("Failed to run: {}", e)),
-            },
+            }
             Err(e) => Err(e),
         },
         Commands::Check { file } => check(&file),
