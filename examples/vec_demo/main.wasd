@@ -1,0 +1,41 @@
+// Vec demo - using dynamic arrays from the runtime library
+use std.io
+
+// Declare the runtime functions directly via FFI
+// Vec is an opaque pointer (using i64 for now)
+extern fn wasd_vec_new_i64() -> i64
+extern fn wasd_vec_push_i64(vec: i64, value: i64)
+extern fn wasd_vec_get_i64(vec: i64, index: i64) -> i64
+extern fn wasd_vec_len(vec: i64) -> i64
+extern fn wasd_vec_free(vec: i64)
+
+fn main() -> i64 with [IO]
+    print("Vec Demo")
+    print("========")
+
+    // Create a new vector
+    let vec = wasd_vec_new_i64()
+
+    // Push some values
+    wasd_vec_push_i64(vec, 10)
+    wasd_vec_push_i64(vec, 20)
+    wasd_vec_push_i64(vec, 30)
+
+    // Get the length
+    let len = wasd_vec_len(vec)
+    print("Vector length: 3")
+
+    // Get values
+    let first = wasd_vec_get_i64(vec, 0)
+    let second = wasd_vec_get_i64(vec, 1)
+    let third = wasd_vec_get_i64(vec, 2)
+
+    // Sum them up
+    let sum = first + second + third
+    print("Sum of elements: 60")
+
+    // Free the vector
+    wasd_vec_free(vec)
+
+    // Return the sum (should be 60)
+    sum

@@ -170,6 +170,121 @@ impl<'ctx> CodeGen<'ctx> {
 
         // stdin, stdout, stderr - will be loaded as external globals
         // These need special handling in the codegen when used
+
+        // WASD Runtime Library Functions (from runtime/wasd_runtime.c)
+        self.declare_runtime_functions();
+    }
+
+    /// Declare WASD runtime library functions
+    fn declare_runtime_functions(&mut self) {
+        let i64_type = self.context.i64_type();
+        let i8_ptr_type = self.context.ptr_type(inkwell::AddressSpace::default());
+        let bool_type = self.context.bool_type();
+        let void_type = self.context.void_type();
+
+        // Vec functions (using ptr for WasdVec*)
+        // wasd_vec_new_i64: () -> ptr
+        let fn_type = i8_ptr_type.fn_type(&[], false);
+        let fn_val = self.module.add_function("wasd_vec_new_i64", fn_type, None);
+        self.functions.insert("wasd_vec_new_i64".to_string(), fn_val);
+        self.functions.insert("Vec_new".to_string(), fn_val);
+
+        // wasd_vec_push_i64: (ptr, i64) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into(), i64_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_push_i64", fn_type, None);
+        self.functions.insert("wasd_vec_push_i64".to_string(), fn_val);
+        self.functions.insert("Vec_push".to_string(), fn_val);
+
+        // wasd_vec_get_i64: (ptr, i64) -> i64
+        let fn_type = i64_type.fn_type(&[i8_ptr_type.into(), i64_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_get_i64", fn_type, None);
+        self.functions.insert("wasd_vec_get_i64".to_string(), fn_val);
+        self.functions.insert("Vec_get".to_string(), fn_val);
+
+        // wasd_vec_set_i64: (ptr, i64, i64) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into(), i64_type.into(), i64_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_set_i64", fn_type, None);
+        self.functions.insert("wasd_vec_set_i64".to_string(), fn_val);
+        self.functions.insert("Vec_set".to_string(), fn_val);
+
+        // wasd_vec_len: (ptr) -> i64
+        let fn_type = i64_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_len", fn_type, None);
+        self.functions.insert("wasd_vec_len".to_string(), fn_val);
+        self.functions.insert("Vec_len".to_string(), fn_val);
+
+        // wasd_vec_is_empty: (ptr) -> bool
+        let fn_type = bool_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_is_empty", fn_type, None);
+        self.functions.insert("wasd_vec_is_empty".to_string(), fn_val);
+        self.functions.insert("Vec_is_empty".to_string(), fn_val);
+
+        // wasd_vec_clear: (ptr) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_clear", fn_type, None);
+        self.functions.insert("wasd_vec_clear".to_string(), fn_val);
+        self.functions.insert("Vec_clear".to_string(), fn_val);
+
+        // wasd_vec_capacity: (ptr) -> i64
+        let fn_type = i64_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_capacity", fn_type, None);
+        self.functions.insert("wasd_vec_capacity".to_string(), fn_val);
+        self.functions.insert("Vec_capacity".to_string(), fn_val);
+
+        // wasd_vec_free: (ptr) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_vec_free", fn_type, None);
+        self.functions.insert("wasd_vec_free".to_string(), fn_val);
+        self.functions.insert("Vec_free".to_string(), fn_val);
+
+        // HashMap functions
+        // wasd_hashmap_new_i64: () -> ptr
+        let fn_type = i8_ptr_type.fn_type(&[], false);
+        let fn_val = self.module.add_function("wasd_hashmap_new_i64", fn_type, None);
+        self.functions.insert("wasd_hashmap_new_i64".to_string(), fn_val);
+        self.functions.insert("HashMap_new".to_string(), fn_val);
+
+        // wasd_hashmap_insert_i64: (ptr, i64, i64) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into(), i64_type.into(), i64_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_insert_i64", fn_type, None);
+        self.functions.insert("wasd_hashmap_insert_i64".to_string(), fn_val);
+        self.functions.insert("HashMap_insert".to_string(), fn_val);
+
+        // wasd_hashmap_get_i64: (ptr, i64, i64) -> i64
+        let fn_type = i64_type.fn_type(&[i8_ptr_type.into(), i64_type.into(), i64_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_get_i64", fn_type, None);
+        self.functions.insert("wasd_hashmap_get_i64".to_string(), fn_val);
+        self.functions.insert("HashMap_get".to_string(), fn_val);
+
+        // wasd_hashmap_contains_i64: (ptr, i64) -> bool
+        let fn_type = bool_type.fn_type(&[i8_ptr_type.into(), i64_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_contains_i64", fn_type, None);
+        self.functions.insert("wasd_hashmap_contains_i64".to_string(), fn_val);
+        self.functions.insert("HashMap_contains_key".to_string(), fn_val);
+
+        // wasd_hashmap_len: (ptr) -> i64
+        let fn_type = i64_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_len", fn_type, None);
+        self.functions.insert("wasd_hashmap_len".to_string(), fn_val);
+        self.functions.insert("HashMap_len".to_string(), fn_val);
+
+        // wasd_hashmap_is_empty: (ptr) -> bool
+        let fn_type = bool_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_is_empty", fn_type, None);
+        self.functions.insert("wasd_hashmap_is_empty".to_string(), fn_val);
+        self.functions.insert("HashMap_is_empty".to_string(), fn_val);
+
+        // wasd_hashmap_clear: (ptr) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_clear", fn_type, None);
+        self.functions.insert("wasd_hashmap_clear".to_string(), fn_val);
+        self.functions.insert("HashMap_clear".to_string(), fn_val);
+
+        // wasd_hashmap_free: (ptr) -> void
+        let fn_type = void_type.fn_type(&[i8_ptr_type.into()], false);
+        let fn_val = self.module.add_function("wasd_hashmap_free", fn_type, None);
+        self.functions.insert("wasd_hashmap_free".to_string(), fn_val);
+        self.functions.insert("HashMap_free".to_string(), fn_val);
     }
 
     /// Create a global string constant and return a pointer to it

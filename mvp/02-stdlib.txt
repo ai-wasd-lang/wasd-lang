@@ -1,8 +1,12 @@
 STANDARD LIBRARY - MISSING/INCOMPLETE
 ======================================
 
-All stdlib functions are TYPE SIGNATURES ONLY.
-Actual implementations need to be written or linked from C.
+Runtime library (runtime/wasd_runtime.c) provides:
+[x] Vec - dynamic array with push, get, set, len, clear, capacity
+[x] HashMap - hash map with insert, get, contains_key, len, clear
+
+Type signatures in src/stdlib/ need to be updated to match runtime.
+Use extern fn declarations for now to call runtime functions.
 
 CORE (std.core):
 [ ] Option methods (map, and_then, unwrap_or, etc)
@@ -10,8 +14,8 @@ CORE (std.core):
 [ ] Ordering comparisons
 
 COLLECTIONS (std.collections):
-[ ] Vec - only signatures, no actual dynamic array
-[ ] HashMap - not implemented
+[x] Vec - implemented in runtime/wasd_runtime.c
+[x] HashMap - implemented in runtime/wasd_runtime.c
 [ ] HashSet - not implemented
 [ ] BTreeMap - not implemented
 [ ] BTreeSet - not implemented

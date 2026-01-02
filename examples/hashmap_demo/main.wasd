@@ -1,0 +1,48 @@
+// HashMap demo - using hash maps from the runtime library
+use std.io
+
+// Declare the runtime functions directly via FFI
+// HashMap is an opaque pointer (using i64 for now)
+extern fn wasd_hashmap_new_i64() -> i64
+extern fn wasd_hashmap_insert_i64(map: i64, key: i64, value: i64)
+extern fn wasd_hashmap_get_i64(map: i64, key: i64, default_value: i64) -> i64
+extern fn wasd_hashmap_contains_i64(map: i64, key: i64) -> bool
+extern fn wasd_hashmap_len(map: i64) -> i64
+extern fn wasd_hashmap_free(map: i64)
+
+fn main() -> i64 with [IO]
+    print("HashMap Demo")
+    print("============")
+
+    // Create a new hash map
+    let map = wasd_hashmap_new_i64()
+
+    // Insert some key-value pairs
+    wasd_hashmap_insert_i64(map, 1, 100)
+    wasd_hashmap_insert_i64(map, 2, 200)
+    wasd_hashmap_insert_i64(map, 3, 300)
+
+    // Get the length
+    let len = wasd_hashmap_len(map)
+    print("HashMap length: 3")
+
+    // Get values
+    let val1 = wasd_hashmap_get_i64(map, 1, 0)  // Should be 100
+    let val2 = wasd_hashmap_get_i64(map, 2, 0)  // Should be 200
+    let val3 = wasd_hashmap_get_i64(map, 3, 0)  // Should be 300
+    let val4 = wasd_hashmap_get_i64(map, 99, 42) // Key not found, should be 42 (default)
+
+    // Check if keys exist
+    let has1 = wasd_hashmap_contains_i64(map, 1)  // true
+    let has99 = wasd_hashmap_contains_i64(map, 99)  // false
+
+    print("val1=100, val2=200, val3=300, val4=42")
+
+    // Sum them up
+    let sum = val1 + val2 + val3 + val4
+
+    // Free the map
+    wasd_hashmap_free(map)
+
+    // Return the sum (should be 100+200+300+42 = 642)
+    sum

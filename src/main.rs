@@ -33,6 +33,46 @@ use module::ModuleLoader;
 use parser::Parser;
 use types::TypeChecker;
 
+/// Find the WASD runtime library for linking.
+/// Looks in: 1) next to executable, 2) in runtime/ subdir, 3) in standard install paths
+fn find_runtime_library() -> Option<String> {
+    // Try to find the library relative to the executable
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            // Check in the same directory as the executable
+            let lib_path = exe_dir.join("libwasd_runtime.a");
+            if lib_path.exists() {
+                return Some(lib_path.to_string_lossy().to_string());
+            }
+
+            // Check in runtime/ subdirectory
+            let lib_path = exe_dir.join("runtime").join("libwasd_runtime.a");
+            if lib_path.exists() {
+                return Some(lib_path.to_string_lossy().to_string());
+            }
+
+            // Check parent/runtime for development builds
+            if let Some(parent) = exe_dir.parent() {
+                // target/debug/../runtime = project_root/runtime (via target/../..)
+                if let Some(grandparent) = parent.parent() {
+                    let lib_path = grandparent.join("runtime").join("libwasd_runtime.a");
+                    if lib_path.exists() {
+                        return Some(lib_path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Check relative to current working directory
+    let cwd_lib = Path::new("runtime/libwasd_runtime.a");
+    if cwd_lib.exists() {
+        return Some(cwd_lib.to_string_lossy().to_string());
+    }
+
+    None
+}
+
 #[derive(ClapParser)]
 #[command(name = "wasd")]
 #[command(author, version, about = "The WASD programming language compiler", long_about = None)]
@@ -175,13 +215,23 @@ fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> 
     // Link to executable
     let exe_path = output.cloned().unwrap_or_else(|| file.with_extension(""));
 
+    // Find the runtime library directory
+    let runtime_lib = find_runtime_library();
+
+    let mut linker_args = vec![
+        obj_path.to_str().unwrap().to_string(),
+        "-o".to_string(),
+        exe_path.to_str().unwrap().to_string(),
+        "-lm".to_string(), // Link math library for FFI functions like sqrt, pow, sin, cos
+    ];
+
+    // Add runtime library if found
+    if let Some(lib_path) = runtime_lib {
+        linker_args.push(lib_path);
+    }
+
     let status = Command::new("cc")
-        .args([
-            obj_path.to_str().unwrap(),
-            "-o",
-            exe_path.to_str().unwrap(),
-            "-lm", // Link math library for FFI functions like sqrt, pow, sin, cos
-        ])
+        .args(&linker_args)
         .status()
         .map_err(|e| format!("Failed to run linker: {}", e))?;
 
