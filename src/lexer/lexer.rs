@@ -319,6 +319,8 @@ impl<'a> Lexer<'a> {
             "loop" => Token::Loop,
             "with" => Token::With,
             "use" => Token::Use,
+            "import" => Token::Import,
+            "pub" => Token::Pub,
             "as" => Token::As,
             "heap" => Token::Heap,
             "rc" => Token::Rc,

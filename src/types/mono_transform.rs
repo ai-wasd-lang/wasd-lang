@@ -21,6 +21,7 @@ impl Monomorphizer {
         let body: Vec<Stmt> = func.body.iter().map(|s| self.transform_stmt(s)).collect();
 
         Function {
+            visibility: func.visibility,
             name: func.name.clone(),
             generics: Vec::new(), // Generics are resolved during monomorphization
             params,

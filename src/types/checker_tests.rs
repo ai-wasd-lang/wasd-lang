@@ -192,8 +192,9 @@ fn main()
     }
 
     #[test]
-    fn test_use_unknown_module() {
-        let source = r#"use unknown.module
+    fn test_use_unknown_stdlib_module() {
+        // Unknown stdlib modules should still error
+        let source = r#"use std.unknown.module
 
 fn main()
     something()
@@ -201,6 +202,21 @@ fn main()
         let result = check(source);
         assert!(result.is_err());
         assert!(result.unwrap_err()[0].contains("Unknown import path"));
+    }
+
+    #[test]
+    fn test_use_local_module_passes_typechecker() {
+        // Non-stdlib imports are handled by module loader, so type checker passes them through
+        // But undefined functions should still error
+        let source = r#"use local.module
+
+fn main()
+    something()
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        // Should error on undefined function, not on import
+        assert!(result.unwrap_err()[0].contains("Undefined"));
     }
 
     #[test]

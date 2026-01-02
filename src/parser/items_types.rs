@@ -6,7 +6,13 @@ use crate::lexer::Token;
 
 impl<'a> Parser<'a> {
     /// Parse a struct definition.
+    #[allow(dead_code)]
     pub(super) fn parse_struct(&mut self) -> Result<StructDef, String> {
+        self.parse_struct_with_visibility(false)
+    }
+
+    /// Parse a struct definition with visibility.
+    pub(super) fn parse_struct_with_visibility(&mut self, is_pub: bool) -> Result<StructDef, String> {
         let span = self.current_span();
         self.expect(&Token::Struct)?;
         let name = self.expect_ident()?;
@@ -36,7 +42,14 @@ impl<'a> Parser<'a> {
             self.advance();
         }
 
+        let visibility = if is_pub {
+            Visibility::Public
+        } else {
+            Visibility::Private
+        };
+
         Ok(StructDef {
+            visibility,
             name,
             generics,
             fields,
@@ -45,7 +58,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an enum definition.
+    #[allow(dead_code)]
     pub(super) fn parse_enum(&mut self) -> Result<EnumDef, String> {
+        self.parse_enum_with_visibility(false)
+    }
+
+    /// Parse an enum definition with visibility.
+    pub(super) fn parse_enum_with_visibility(&mut self, is_pub: bool) -> Result<EnumDef, String> {
         let span = self.current_span();
         self.expect(&Token::Enum)?;
         let name = self.expect_ident()?;
@@ -87,7 +106,14 @@ impl<'a> Parser<'a> {
             self.advance();
         }
 
+        let visibility = if is_pub {
+            Visibility::Public
+        } else {
+            Visibility::Private
+        };
+
         Ok(EnumDef {
+            visibility,
             name,
             generics,
             variants,

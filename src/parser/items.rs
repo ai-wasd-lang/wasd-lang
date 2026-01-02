@@ -7,11 +7,20 @@ use crate::lexer::Token;
 impl<'a> Parser<'a> {
     /// Parse a top-level item.
     pub(super) fn parse_item(&mut self) -> Result<Item, String> {
+        // Check for visibility modifier
+        let is_pub = if self.check(&Token::Pub) {
+            self.advance();
+            true
+        } else {
+            false
+        };
+
         match self.peek() {
             Token::Use => self.parse_use().map(Item::Use),
-            Token::Fn => self.parse_function().map(Item::Function),
-            Token::Struct => self.parse_struct().map(Item::Struct),
-            Token::Enum => self.parse_enum().map(Item::Enum),
+            Token::Import => self.parse_use().map(Item::Use), // import is an alias for use
+            Token::Fn => self.parse_function_with_visibility(is_pub).map(Item::Function),
+            Token::Struct => self.parse_struct_with_visibility(is_pub).map(Item::Struct),
+            Token::Enum => self.parse_enum_with_visibility(is_pub).map(Item::Enum),
             Token::Trait => self.parse_trait().map(Item::Trait),
             Token::Impl => self.parse_impl().map(Item::Impl),
             _ => Err(format!("Expected item, found {:?}", self.peek())),
@@ -21,7 +30,14 @@ impl<'a> Parser<'a> {
     /// Parse a use statement.
     pub(super) fn parse_use(&mut self) -> Result<UseStmt, String> {
         let span = self.current_span();
-        self.expect(&Token::Use)?;
+        // Accept either 'use' or 'import'
+        if self.check(&Token::Use) {
+            self.advance();
+        } else if self.check(&Token::Import) {
+            self.advance();
+        } else {
+            return Err("Expected 'use' or 'import'".to_string());
+        }
 
         // Parse the path: std.io.print or std.io
         let mut path = Vec::new();
@@ -61,8 +77,13 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Parse a function definition.
+    /// Parse a function definition (for impls and traits).
     pub(super) fn parse_function(&mut self) -> Result<Function, String> {
+        self.parse_function_with_visibility(false)
+    }
+
+    /// Parse a function definition with visibility.
+    pub(super) fn parse_function_with_visibility(&mut self, is_pub: bool) -> Result<Function, String> {
         let start = self.current_span();
         self.expect(&Token::Fn)?;
         let name = self.expect_ident()?;
@@ -105,7 +126,14 @@ impl<'a> Parser<'a> {
         self.expect(&Token::Indent)?;
         let body = self.parse_block()?;
 
+        let visibility = if is_pub {
+            Visibility::Public
+        } else {
+            Visibility::Private
+        };
+
         Ok(Function {
+            visibility,
             name,
             generics,
             params,

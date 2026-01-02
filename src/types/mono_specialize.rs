@@ -33,6 +33,7 @@ impl Monomorphizer {
         let key = MonoKey::new(generic_def.name.clone(), type_args.to_vec());
 
         StructDef {
+            visibility: generic_def.visibility,
             name: key.mangled_name(),
             generics: Vec::new(), // No longer generic
             fields,
@@ -65,6 +66,7 @@ impl Monomorphizer {
         let key = MonoKey::new(generic_def.name.clone(), type_args.to_vec());
 
         EnumDef {
+            visibility: generic_def.visibility,
             name: key.mangled_name(),
             generics: Vec::new(),
             variants,

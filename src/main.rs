@@ -8,7 +8,7 @@
 use clap::{Parser as ClapParser, Subcommand};
 use inkwell::context::Context;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod borrow;
@@ -16,6 +16,7 @@ mod codegen;
 mod errors;
 mod ir;
 mod lexer;
+mod module;
 mod parser;
 mod stdlib;
 mod types;
@@ -24,6 +25,7 @@ use borrow::BorrowChecker;
 use codegen::CodeGen;
 use errors::{report_error, Diagnostic};
 use ir::lower_program;
+use module::ModuleLoader;
 use parser::Parser;
 use types::TypeChecker;
 
@@ -89,6 +91,11 @@ fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> 
     let program = parser.parse().inspect_err(|e| {
         report_error(&filename, &source, &Diagnostic::error(e, (0, 1)));
     })?;
+
+    // Phase 1.5: Resolve module imports
+    let base_dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
+    let mut module_loader = ModuleLoader::new(base_dir);
+    let program = module_loader.resolve_imports(&program)?;
 
     // Phase 2: Type Checking
     let mut type_checker = TypeChecker::new();

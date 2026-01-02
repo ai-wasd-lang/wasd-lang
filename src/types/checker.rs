@@ -31,6 +31,13 @@ impl TypeChecker {
     fn process_use(&mut self, use_stmt: &UseStmt) -> Result<(), String> {
         let path = use_stmt.path.join(".");
 
+        // Only try to resolve stdlib imports (std.*)
+        // Local module imports are handled by the module loader before type checking
+        if use_stmt.path.first().map(|s| s.as_str()) != Some("std") {
+            // Local import - items are already added by the module loader
+            return Ok(());
+        }
+
         if let Some(imports) = stdlib::resolve_import(&path) {
             if use_stmt.wildcard {
                 for (name, ty) in imports {

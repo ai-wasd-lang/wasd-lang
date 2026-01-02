@@ -33,9 +33,23 @@ pub struct UseStmt {
     pub span: Span,
 }
 
+/// Visibility modifier for items.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    Private,
+    Public,
+}
+
+impl Default for Visibility {
+    fn default() -> Self {
+        Visibility::Private
+    }
+}
+
 /// A function definition.
 #[derive(Debug, Clone)]
 pub struct Function {
+    pub visibility: Visibility,
     pub name: String,
     pub generics: Vec<String>,
     pub params: Vec<Param>,
@@ -56,6 +70,7 @@ pub struct Param {
 /// A struct definition.
 #[derive(Debug, Clone)]
 pub struct StructDef {
+    pub visibility: Visibility,
     pub name: String,
     pub generics: Vec<String>,
     pub fields: Vec<Field>,
@@ -73,6 +88,7 @@ pub struct Field {
 /// An enum definition.
 #[derive(Debug, Clone)]
 pub struct EnumDef {
+    pub visibility: Visibility,
     pub name: String,
     pub generics: Vec<String>,
     pub variants: Vec<Variant>,
