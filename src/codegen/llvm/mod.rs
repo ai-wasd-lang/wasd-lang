@@ -62,17 +62,51 @@ impl<'ctx> CodeGen<'ctx> {
         codegen
     }
 
-    /// Declare external C library functions (puts, printf, etc.)
+    /// Declare external C library functions (puts, printf, strlen, strcmp, etc.)
     fn declare_c_functions(&mut self) {
         let i32_type = self.context.i32_type();
+        let i64_type = self.context.i64_type();
         let i8_ptr_type = self.context.ptr_type(inkwell::AddressSpace::default());
+
+        // puts: (char*) -> i32
         let puts_type = i32_type.fn_type(&[i8_ptr_type.into()], false);
         let puts_fn = self.module.add_function("puts", puts_type, None);
         self.functions.insert("puts".to_string(), puts_fn);
 
+        // printf: (char*, ...) -> i32
         let printf_type = i32_type.fn_type(&[i8_ptr_type.into()], true);
         let printf_fn = self.module.add_function("printf", printf_type, None);
         self.functions.insert("printf".to_string(), printf_fn);
+
+        // strlen: (char*) -> size_t (i64)
+        let strlen_type = i64_type.fn_type(&[i8_ptr_type.into()], false);
+        let strlen_fn = self.module.add_function("strlen", strlen_type, None);
+        self.functions.insert("strlen".to_string(), strlen_fn);
+
+        // strcmp: (char*, char*) -> i32
+        let strcmp_type = i32_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
+        let strcmp_fn = self.module.add_function("strcmp", strcmp_type, None);
+        self.functions.insert("strcmp".to_string(), strcmp_fn);
+
+        // strncmp: (char*, char*, size_t) -> i32
+        let strncmp_type = i32_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into(), i64_type.into()], false);
+        let strncmp_fn = self.module.add_function("strncmp", strncmp_type, None);
+        self.functions.insert("strncmp".to_string(), strncmp_fn);
+
+        // strstr: (char*, char*) -> char*
+        let strstr_type = i8_ptr_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
+        let strstr_fn = self.module.add_function("strstr", strstr_type, None);
+        self.functions.insert("strstr".to_string(), strstr_fn);
+
+        // strcpy: (char*, char*) -> char*
+        let strcpy_type = i8_ptr_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
+        let strcpy_fn = self.module.add_function("strcpy", strcpy_type, None);
+        self.functions.insert("strcpy".to_string(), strcpy_fn);
+
+        // strcat: (char*, char*) -> char*
+        let strcat_type = i8_ptr_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
+        let strcat_fn = self.module.add_function("strcat", strcat_type, None);
+        self.functions.insert("strcat".to_string(), strcat_fn);
     }
 
     /// Create a global string constant and return a pointer to it

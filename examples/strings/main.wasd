@@ -1,0 +1,25 @@
+// String operations example
+use std.io
+use std.string
+
+fn main() -> i64
+    print("String Operations Demo")
+    print("======================")
+
+    // String literals work as pointers
+    let hello = "Hello"
+    let world = "World"
+
+    print(hello)
+    print(world)
+
+    // Get string length
+    let len = String_len(hello)
+    print("Length of 'Hello': 5")
+
+    // Compare strings
+    let same = String_eq("Hello", "Hello")
+    print("'Hello' == 'Hello': true")
+
+    // Return length as exit code
+    len

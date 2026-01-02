@@ -95,6 +95,12 @@ impl<'ctx> CodeGen<'ctx> {
                 let actual_func = match func.as_str() {
                     "println" => "puts",
                     "print" => "printf",
+                    // String stdlib functions
+                    "String_len" => "strlen",
+                    "String_eq" | "String_cmp" => "strcmp",
+                    "String_contains" => "strstr",
+                    "String_concat" => "strcat",
+                    "String_copy" => "strcpy",
                     other => other,
                 };
 

@@ -113,6 +113,26 @@ pub fn module() -> StdModule {
         },
     );
 
+    // String::eq: (String, String) -> bool (actually returns i32 from strcmp)
+    functions.insert(
+        "String_eq".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::String, WasdType::String],
+            ret: Box::new(WasdType::I32),
+            effects: vec![],
+        },
+    );
+
+    // String::cmp: (String, String) -> i32
+    functions.insert(
+        "String_cmp".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::String, WasdType::String],
+            ret: Box::new(WasdType::I32),
+            effects: vec![],
+        },
+    );
+
     // String::to_uppercase: (String) -> String
     functions.insert(
         "String_to_uppercase".to_string(),
