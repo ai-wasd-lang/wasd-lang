@@ -20,6 +20,7 @@ mod lexer;
 mod lsp;
 mod module;
 mod parser;
+mod pkg;
 mod repl;
 mod stdlib;
 mod types;
@@ -89,6 +90,36 @@ enum Commands {
 
     /// Start the Language Server Protocol server
     Lsp,
+
+    /// Create a new WASD project
+    New {
+        /// Project name
+        name: String,
+    },
+
+    /// Initialize a WASD project in the current directory
+    Init,
+
+    /// Add a dependency to the project
+    Add {
+        /// Dependency specification (e.g., "http", "http@1.2.3", "github:user/repo@1.0.0")
+        dependency: String,
+    },
+
+    /// Remove a dependency from the project
+    Remove {
+        /// Package name to remove
+        name: String,
+    },
+
+    /// Install all dependencies
+    Install,
+
+    /// Update dependencies
+    Update {
+        /// Specific package to update (updates all if not specified)
+        package: Option<String>,
+    },
 }
 
 fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> {
@@ -259,6 +290,22 @@ fn format_file(file: &PathBuf, check_only: bool) -> Result<(), String> {
     }
 }
 
+/// Find the wasd.toml manifest in the current or parent directories
+fn find_manifest() -> Result<PathBuf, String> {
+    let mut current = std::env::current_dir().map_err(|e| e.to_string())?;
+
+    loop {
+        let manifest = current.join("wasd.toml");
+        if manifest.exists() {
+            return Ok(manifest);
+        }
+
+        if !current.pop() {
+            return Err("Could not find wasd.toml in current directory or any parent".to_string());
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -311,6 +358,44 @@ fn main() {
                 .expect("Failed to create Tokio runtime")
                 .block_on(lsp::run_server());
             Ok(())
+        }
+        Commands::New { name } => {
+            std::env::current_dir()
+                .map_err(|e| e.to_string())
+                .and_then(|dir| {
+                    pkg::new_project(&name, &dir)
+                        .map_err(|e| e.to_string())
+                        .map(|_| println!("Created new project: {}", name))
+                })
+        }
+        Commands::Init => {
+            std::env::current_dir()
+                .map_err(|e| e.to_string())
+                .and_then(|dir| {
+                    pkg::init_project(&dir, None)
+                        .map_err(|e| e.to_string())
+                        .map(|_| println!("Initialized project in current directory"))
+                })
+        }
+        Commands::Add { dependency } => {
+            find_manifest().and_then(|m| {
+                pkg::add_dependency(&m, &dependency).map_err(|e| e.to_string())
+            })
+        }
+        Commands::Remove { name } => {
+            find_manifest().and_then(|m| {
+                pkg::remove_dependency(&m, &name).map_err(|e| e.to_string())
+            })
+        }
+        Commands::Install => {
+            find_manifest().and_then(|m| {
+                pkg::install_dependencies(&m).map_err(|e| e.to_string())
+            })
+        }
+        Commands::Update { package } => {
+            find_manifest().and_then(|m| {
+                pkg::update_dependencies(&m, package.as_deref()).map_err(|e| e.to_string())
+            })
         }
     };
 
