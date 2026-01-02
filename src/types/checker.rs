@@ -18,6 +18,8 @@ pub struct TypeChecker {
     substitutions: HashMap<usize, WasdType>,
     /// Exhaustiveness checker for pattern matching
     pub exhaustiveness: ExhaustivenessChecker,
+    /// Current function's declared effects (for effect validation)
+    pub current_effects: Vec<String>,
 }
 
 impl TypeChecker {
@@ -28,6 +30,7 @@ impl TypeChecker {
             next_var: 0,
             substitutions: HashMap::new(),
             exhaustiveness: ExhaustivenessChecker::new(),
+            current_effects: Vec::new(),
         }
     }
 
@@ -190,6 +193,8 @@ impl TypeChecker {
         }
 
         let saved_env = self.env.clone();
+        // Save and set current effects context for effect validation
+        let saved_effects = std::mem::replace(&mut self.current_effects, func.effects.clone());
 
         for param in &func.params {
             let ty = self.ast_type_to_wasd_type(&param.ty)?;
@@ -201,6 +206,7 @@ impl TypeChecker {
         }
 
         self.env = saved_env;
+        self.current_effects = saved_effects;
         Ok(())
     }
 

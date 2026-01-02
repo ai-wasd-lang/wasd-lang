@@ -1,0 +1,36 @@
+// Effects System Example
+// Demonstrates effect annotations and validation
+
+use std.io
+
+// Pure function - no side effects
+fn add(a: i64, b: i64) -> i64
+    a + b
+
+// Pure function - no side effects
+fn multiply(a: i64, b: i64) -> i64
+    a * b
+
+// Function with IO effect - can perform I/O
+fn greet() with [IO]
+    println("Hello, World!")
+
+// Function with IO effect that calls pure functions
+fn calculate_and_print(x: i64, y: i64) with [IO]
+    let sum = add(x, y)
+    let product = multiply(x, y)
+    println("Calculation complete")
+
+// Main function with IO effect
+fn main() with [IO]
+    // IO function can call pure functions
+    let result = add(10, 20)
+    println("10 + 20 = 30")
+
+    // IO function can call other IO functions
+    greet()
+
+    // Calculate and print
+    calculate_and_print(5, 3)
+
+    println("Effects system working!")

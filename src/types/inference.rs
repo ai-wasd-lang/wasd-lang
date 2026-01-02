@@ -96,7 +96,7 @@ impl TypeChecker {
 
                 let callee_ty = self.infer_expr(callee)?;
                 match callee_ty {
-                    WasdType::Function { params, ret, .. } => {
+                    WasdType::Function { params, ret, effects } => {
                         if params.len() != args.len() {
                             return Err(format!(
                                 "Expected {} arguments, got {}",
@@ -107,6 +107,20 @@ impl TypeChecker {
                         for (param, arg) in params.iter().zip(args.iter()) {
                             let arg_ty = self.infer_expr(arg)?;
                             self.unify(param, &arg_ty)?;
+                        }
+                        // Validate effects: called function's effects must be subset of caller's effects
+                        for effect in &effects {
+                            if !self.current_effects.contains(effect) {
+                                let callee_name = if let Expr::Ident(name, _) = callee.as_ref() {
+                                    name.clone()
+                                } else {
+                                    "function".to_string()
+                                };
+                                return Err(format!(
+                                    "Function '{}' has effect [{}] but caller does not declare it",
+                                    callee_name, effect
+                                ));
+                            }
                         }
                         Ok(*ret)
                     }

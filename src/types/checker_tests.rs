@@ -300,4 +300,83 @@ fn main() -> i64
 "#;
         assert!(check(source).is_ok());
     }
+
+    #[test]
+    fn test_effects_pure_calling_pure() {
+        // Pure function can call pure function
+        let source = r#"fn pure_add(a: i64, b: i64) -> i64
+    a + b
+
+fn main() -> i64
+    pure_add(1, 2)
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_effects_io_calling_io() {
+        // IO function can call IO function
+        let source = r#"fn io_read() -> String with [IO]
+    "data"
+
+fn main() -> String with [IO]
+    io_read()
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_effects_pure_cannot_call_io() {
+        // Pure function cannot call IO function
+        let source = r#"fn io_read() -> String with [IO]
+    "data"
+
+fn main() -> String
+    io_read()
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors[0].contains("effect"));
+        assert!(errors[0].contains("IO"));
+    }
+
+    #[test]
+    fn test_effects_io_can_call_pure() {
+        // IO function can call pure function
+        let source = r#"fn pure_add(a: i64, b: i64) -> i64
+    a + b
+
+fn main() -> i64 with [IO]
+    pure_add(1, 2)
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_effects_multiple_effects() {
+        // Function with multiple effects
+        let source = r#"fn async_io() -> String with [IO, Async]
+    "data"
+
+fn main() -> String with [IO, Async]
+    async_io()
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_effects_missing_one_of_multiple() {
+        // Caller has IO but callee also needs Async
+        let source = r#"fn async_io() -> String with [IO, Async]
+    "data"
+
+fn main() -> String with [IO]
+    async_io()
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors[0].contains("Async"));
+    }
 }

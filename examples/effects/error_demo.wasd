@@ -1,0 +1,17 @@
+// Effects Error Demo
+// This file intentionally has an effect violation to show error messages
+// Compile with: cargo run -- check examples/effects/error_demo.wasd
+
+use std.io
+
+// IO function
+fn do_io() with [IO]
+    println("side effect!")
+
+// This pure function tries to call an IO function - ERROR!
+fn pure_func() -> i64
+    do_io()  // ERROR: pure_func doesn't have [IO] effect
+    42
+
+fn main()
+    pure_func()
