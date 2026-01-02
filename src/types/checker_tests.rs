@@ -252,4 +252,52 @@ fn main()
 "#;
         assert!(check(source).is_ok());
     }
+
+    #[test]
+    fn test_exhaustive_match() {
+        let source = r#"enum Option[T]
+    Some(T)
+    None
+
+fn main() -> i64
+    let x = Option::Some(42)
+    match x
+        Option::Some(val) => val
+        Option::None => 0
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_non_exhaustive_match() {
+        let source = r#"enum Option[T]
+    Some(T)
+    None
+
+fn main() -> i64
+    let x = Option::Some(42)
+    match x
+        Option::Some(val) => val
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors[0].contains("Non-exhaustive"));
+        assert!(errors[0].contains("Option::None"));
+    }
+
+    #[test]
+    fn test_wildcard_makes_match_exhaustive() {
+        let source = r#"enum Option[T]
+    Some(T)
+    None
+
+fn main() -> i64
+    let x = Option::Some(42)
+    match x
+        Option::Some(val) => val
+        _ => 0
+"#;
+        assert!(check(source).is_ok());
+    }
 }

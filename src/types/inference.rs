@@ -146,7 +146,16 @@ impl TypeChecker {
                 }
             }
             Expr::Match(value, arms, _) => {
-                self.infer_expr(value)?;
+                let value_ty = self.infer_expr(value)?;
+
+                // Try to determine the enum type for exhaustiveness checking
+                let enum_name = match &value_ty {
+                    WasdType::Named(name) => Some(name.clone()),
+                    WasdType::Generic(name, _) => Some(name.clone()),
+                    _ => None,
+                };
+
+                // Check each arm
                 for arm in arms {
                     let old_env = self.env.clone();
                     // Add pattern bindings to environment
@@ -154,6 +163,17 @@ impl TypeChecker {
                     self.infer_expr(&arm.body)?;
                     self.env = old_env;
                 }
+
+                // Check exhaustiveness if we know the enum type
+                if let Some(name) = enum_name {
+                    if let Err(missing) = self.exhaustiveness.check_match(&name, arms) {
+                        return Err(format!(
+                            "Non-exhaustive match: missing patterns {}",
+                            missing.join(", ")
+                        ));
+                    }
+                }
+
                 Ok(WasdType::Unknown)
             }
             Expr::HeapAlloc(inner, _) => {

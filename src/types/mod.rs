@@ -5,6 +5,7 @@
 pub mod checker;
 #[cfg(test)]
 mod checker_tests;
+pub mod exhaustiveness;
 mod inference;
 #[allow(dead_code)]
 pub mod monomorphize;

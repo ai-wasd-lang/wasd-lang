@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use super::exhaustiveness::ExhaustivenessChecker;
 use super::types::WasdType;
 use crate::parser::{EnumDef, ExternFn, Function, ImplDef, Item, Program, StructDef, TraitDef, Type, UseStmt};
 use crate::stdlib;
@@ -15,6 +16,8 @@ pub struct TypeChecker {
     next_var: usize,
     /// Type substitutions from unification
     substitutions: HashMap<usize, WasdType>,
+    /// Exhaustiveness checker for pattern matching
+    pub exhaustiveness: ExhaustivenessChecker,
 }
 
 impl TypeChecker {
@@ -24,6 +27,7 @@ impl TypeChecker {
             env: HashMap::new(),
             next_var: 0,
             substitutions: HashMap::new(),
+            exhaustiveness: ExhaustivenessChecker::new(),
         }
     }
 
@@ -64,6 +68,7 @@ impl TypeChecker {
     pub fn check_program(&mut self, program: &Program) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
+        // Process use statements first
         for item in &program.items {
             if let Item::Use(use_stmt) = item {
                 if let Err(e) = self.process_use(use_stmt) {
@@ -72,6 +77,14 @@ impl TypeChecker {
             }
         }
 
+        // Register enums for exhaustiveness checking
+        for item in &program.items {
+            if let Item::Enum(e) = item {
+                self.exhaustiveness.register_enum(e);
+            }
+        }
+
+        // Register functions
         for item in &program.items {
             if let Item::Function(f) = item {
                 if let Err(e) = self.register_function(f) {
@@ -80,6 +93,7 @@ impl TypeChecker {
             }
         }
 
+        // Check all items
         for item in &program.items {
             if let Err(e) = self.check_item(item) {
                 errors.push(e);
@@ -194,7 +208,8 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn register_enum(&mut self, _e: &EnumDef) -> Result<(), String> {
+    fn register_enum(&mut self, e: &EnumDef) -> Result<(), String> {
+        self.exhaustiveness.register_enum(e);
         Ok(())
     }
 

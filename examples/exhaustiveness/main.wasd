@@ -1,0 +1,25 @@
+// Exhaustiveness checking example
+// Demonstrates that match expressions must cover all enum variants
+
+// Define our own Option type
+enum Option[T]
+    Some(T)
+    None
+
+fn main() -> i64
+    // Create an option with a value
+    let x = Option::Some(42)
+
+    // Exhaustive match - all variants covered
+    let v1 = match x
+        Option::Some(val) => val
+        Option::None => 0
+
+    // Another match with wildcard pattern
+    let y = Option::Some(100)
+    let v2 = match y
+        Option::Some(n) => n
+        _ => 0
+
+    // Return sum (42 + 100 = 142)
+    v1 + v2
