@@ -134,10 +134,21 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             }
             IrInst::GetElementPtr { dest, ptr, indices, base_type } => {
-                let ptr_val = *self
+                let ptr_alloca = *self
                     .variables
                     .get(ptr)
                     .ok_or_else(|| format!("Variable not found: {}", ptr))?;
+
+                // If the pointer is a GEP result or a pointer parameter, we need to load the actual pointer first
+                let ptr_val = if self.gep_results.contains(ptr) || self.pointer_params.contains(ptr) {
+                    let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+                    self.builder
+                        .build_load(ptr_ty, ptr_alloca, "actual_ptr")
+                        .map_err(|e| format!("Failed to load pointer: {}", e))?
+                        .into_pointer_value()
+                } else {
+                    ptr_alloca
+                };
 
                 let mut llvm_indices = Vec::new();
                 for idx in indices {

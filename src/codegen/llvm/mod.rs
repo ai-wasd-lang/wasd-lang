@@ -34,6 +34,7 @@ pub struct CodeGen<'ctx> {
     pub(super) blocks: HashMap<String, BasicBlock<'ctx>>,
     pub(super) string_counter: usize,
     pub(super) gep_results: std::collections::HashSet<String>,
+    pub(super) pointer_params: std::collections::HashSet<String>,
     pub(super) struct_types: HashMap<String, StructType<'ctx>>,
     pub(super) struct_fields: HashMap<String, Vec<(String, IrType)>>,
 }
@@ -54,6 +55,7 @@ impl<'ctx> CodeGen<'ctx> {
             blocks: HashMap::new(),
             string_counter: 0,
             gep_results: std::collections::HashSet::new(),
+            pointer_params: std::collections::HashSet::new(),
             struct_types: HashMap::new(),
             struct_fields: HashMap::new(),
         };
@@ -253,6 +255,7 @@ impl<'ctx> CodeGen<'ctx> {
         self.variable_types.clear();
         self.blocks.clear();
         self.gep_results.clear();
+        self.pointer_params.clear();
 
         for ir_block in &func.blocks {
             let bb = self.context.append_basic_block(fn_value, &ir_block.label);
@@ -276,6 +279,11 @@ impl<'ctx> CodeGen<'ctx> {
                 .map_err(|e| format!("Failed to build store: {}", e))?;
             self.variables.insert(name.clone(), alloca);
             self.variable_types.insert(name.clone(), llvm_ty);
+
+            // Track pointer parameters (e.g., self in methods) for proper GEP handling
+            if matches!(ty, IrType::Ptr(_)) {
+                self.pointer_params.insert(name.clone());
+            }
         }
 
         for ir_block in &func.blocks {

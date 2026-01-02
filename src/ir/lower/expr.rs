@@ -160,15 +160,21 @@ impl Lowerer {
         base: &ast::Expr,
         field_name: &str,
     ) -> Option<IrValue> {
-        // Get the variable name from the base expression
-        let var_name = match base {
-            ast::Expr::Ident(name, _) => name.clone(),
+        // Handle base expression to get the pointer and type
+        let (base_ptr, struct_type_name) = match base {
+            ast::Expr::Ident(name, _) => {
+                // Simple identifier - look up variable type
+                let type_name = self.variable_types.get(name).cloned()
+                    .unwrap_or_else(|| name.clone());
+                (name.clone(), type_name)
+            }
+            ast::Expr::FieldAccess(inner_base, inner_field, _) => {
+                // Nested field access - first get the intermediate struct pointer
+                let inner_result = self.lower_field_access_to_ptr(inner_base, inner_field)?;
+                (inner_result.0, inner_result.1)
+            }
             _ => return None,
         };
-
-        // Look up the struct type for this variable
-        let struct_type_name = self.variable_types.get(&var_name).cloned()
-            .unwrap_or_else(|| var_name.clone());
 
         let field_index = self.get_field_index(&struct_type_name, field_name);
 
@@ -181,7 +187,7 @@ impl Lowerer {
         let field_ptr = self.fresh_var();
         self.current_block.push(IrInst::GetElementPtr {
             dest: field_ptr.clone(),
-            ptr: var_name,
+            ptr: base_ptr,
             indices: vec![
                 IrValue::ConstInt(0, IrType::I32),
                 IrValue::ConstInt(field_index as i64, IrType::I32),
@@ -197,6 +203,51 @@ impl Lowerer {
         });
 
         Some(IrValue::Var(dest))
+    }
+
+    /// Lower field access but return the pointer instead of loading the value.
+    /// Returns (ptr_var_name, field_type_name)
+    fn lower_field_access_to_ptr(
+        &mut self,
+        base: &ast::Expr,
+        field_name: &str,
+    ) -> Option<(String, String)> {
+        // Handle base expression to get the pointer and type
+        let (base_ptr, struct_type_name) = match base {
+            ast::Expr::Ident(name, _) => {
+                let type_name = self.variable_types.get(name).cloned()
+                    .unwrap_or_else(|| name.clone());
+                (name.clone(), type_name)
+            }
+            ast::Expr::FieldAccess(inner_base, inner_field, _) => {
+                self.lower_field_access_to_ptr(inner_base, inner_field)?
+            }
+            _ => return None,
+        };
+
+        let field_index = self.get_field_index(&struct_type_name, field_name);
+
+        // Get the field type name (for nested struct access)
+        let field_type_name = self.struct_fields.get(&struct_type_name)
+            .and_then(|fields| fields.get(field_index))
+            .and_then(|(_, ty)| match ty {
+                IrType::Struct(name) => Some(name.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| field_name.to_string());
+
+        let field_ptr = self.fresh_var();
+        self.current_block.push(IrInst::GetElementPtr {
+            dest: field_ptr.clone(),
+            ptr: base_ptr,
+            indices: vec![
+                IrValue::ConstInt(0, IrType::I32),
+                IrValue::ConstInt(field_index as i64, IrType::I32),
+            ],
+            base_type: Some(IrType::Struct(struct_type_name)),
+        });
+
+        Some((field_ptr, field_type_name))
     }
 
     fn lower_enum_construct(
