@@ -1,14 +1,23 @@
-// Closure example - parsing works, full higher-order functions in progress
+// Closure example
+use std.io
 
 fn main() -> i64
-    // Closures use |params| body syntax
-    // Full support for passing closures as arguments is in development
+    print("Closure Demo")
+    print("============")
 
-    // Basic computation instead
-    let a = 10
-    let b = 5
-    let c = 3
+    // Define closures using |params| body syntax
+    let double = |x: i64| x * 2
+    let square = |x: i64| x * x
+    let add_one = |x: i64| x + 1
 
-    // Compute (a + b) * c = (10 + 5) * 3 = 45
-    let sum = a + b
-    sum * c
+    // Call closures
+    let a = double(5)      // 10
+    let b = square(4)      // 16
+    let c = add_one(18)    // 19
+
+    print("double(5) = 10")
+    print("square(4) = 16")
+    print("add_one(18) = 19")
+
+    // Combine results: 10 + 16 + 19 = 45
+    a + b + c

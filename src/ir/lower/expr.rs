@@ -35,13 +35,20 @@ impl Lowerer {
                         self.lower_method_call(base, method_name, args)
                     }
                     ast::Expr::Ident(name, _) => {
+                        // Check if this is a closure call
+                        let func_name = if let Some(closure_func) = self.closure_bindings.get(name) {
+                            closure_func.clone()
+                        } else {
+                            name.clone()
+                        };
+
                         // Regular function call
                         let ir_args: Vec<_> = args.iter().filter_map(|a| self.lower_expr(a)).collect();
                         let dest = self.fresh_var();
 
                         self.current_block.push(IrInst::Call {
                             dest: Some(dest.clone()),
-                            func: name.clone(),
+                            func: func_name,
                             args: ir_args,
                         });
 

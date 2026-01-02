@@ -10,6 +10,15 @@ impl Lowerer {
             ast::Stmt::Let {
                 name, value, ty, ..
             } => {
+                // Check if this is a closure binding
+                if let ast::Expr::Lambda { .. } = value {
+                    if let Some(IrValue::Var(closure_name)) = self.lower_expr(value) {
+                        // Track the closure binding
+                        self.closure_bindings.insert(name.clone(), closure_name);
+                    }
+                    return None;
+                }
+
                 // Infer the type from the value expression if not explicitly provided
                 let ir_type = if let Some(t) = ty {
                     self.lower_type(t)

@@ -34,6 +34,8 @@ pub(super) struct Lowerer {
     pub(super) variable_types: HashMap<String, String>,
     /// Maps type name -> list of method names (for impl blocks)
     pub(super) impl_methods: HashMap<String, Vec<String>>,
+    /// Maps closure variable name -> closure function name
+    pub(super) closure_bindings: HashMap<String, String>,
 }
 
 impl Lowerer {
@@ -50,6 +52,7 @@ impl Lowerer {
             enum_variants: HashMap::new(),
             variable_types: HashMap::new(),
             impl_methods: HashMap::new(),
+            closure_bindings: HashMap::new(),
         }
     }
 
