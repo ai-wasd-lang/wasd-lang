@@ -1,0 +1,18 @@
+// Closure examples
+use std.io
+
+fn main() -> i64
+    // Simple closure with no parameters
+    let get_value = || 42
+
+    // Closure with typed parameters
+    let add = |x: i64, y: i64| x + y
+
+    // Another closure with typed parameters
+    let multiply = |a: i64, b: i64| a * b
+
+    // Using closures
+    let result = add(10, 20)
+    let product = multiply(5, 6)
+
+    result + product

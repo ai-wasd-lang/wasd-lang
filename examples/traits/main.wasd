@@ -1,0 +1,27 @@
+// Trait and impl examples
+
+struct Point
+    x: i64
+    y: i64
+
+trait Add[Rhs, Output]
+    fn add(self, rhs: Rhs) -> Output
+
+impl Add[Point, Point] for Point
+    fn add(self, other: Point) -> Point
+        Point(x: self.x + other.x, y: self.y + other.y)
+
+// Inherent impl (no trait)
+impl Point
+    fn new(x: i64, y: i64) -> Point
+        Point(x: x, y: y)
+
+fn main() -> i64
+    let p1 = Point(x: 3, y: 4)
+    let p2 = Point(x: 1, y: 2)
+
+    // Access struct fields
+    let x1 = p1.x
+    let y1 = p1.y
+
+    x1 + y1

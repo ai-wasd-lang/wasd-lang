@@ -1,0 +1,18 @@
+// Generics examples
+
+struct Container[T]
+    value: T
+
+struct Pair[A, B]
+    first: A
+    second: B
+
+fn main() -> i64
+    // Generic struct instantiation
+    let int_container = Container(value: 42)
+    let bool_container = Container(value: true)
+
+    // Access generic struct field
+    let val = int_container.value
+
+    val

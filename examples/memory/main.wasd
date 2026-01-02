@@ -1,0 +1,19 @@
+// Memory allocation examples
+
+struct Data
+    value: i64
+
+fn main() -> i64
+    // Stack allocation (default)
+    let stack_data = Data(value: 10)
+
+    // Heap allocation
+    let heap_data = heap Data(value: 20)
+
+    // Reference counting
+    let rc_data = rc Data(value: 30)
+
+    // Atomic reference counting (thread-safe)
+    let arc_data = arc Data(value: 40)
+
+    stack_data.value
