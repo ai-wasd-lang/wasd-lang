@@ -18,6 +18,7 @@ mod ir;
 mod lexer;
 mod module;
 mod parser;
+mod repl;
 mod stdlib;
 mod types;
 
@@ -80,6 +81,9 @@ enum Commands {
         #[arg(long)]
         check: bool,
     },
+
+    /// Start an interactive REPL session
+    Repl,
 }
 
 fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> {
@@ -277,6 +281,10 @@ fn main() {
             // TODO: Implement formatter
             println!("Formatter not yet implemented for {:?}", file);
             Ok(())
+        }
+        Commands::Repl => {
+            let mut repl = repl::Repl::new();
+            repl.run()
         }
     };
 
