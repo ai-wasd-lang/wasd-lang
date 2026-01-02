@@ -129,7 +129,7 @@ impl Lowerer {
                         let mut mangled_method = method.clone();
                         mangled_method.name = mangled_name;
 
-                        if let Some(ir_func) = self.lower_function(&mangled_method) {
+                        if let Some(ir_func) = self.lower_method(&mangled_method, &type_name) {
                             functions.push(ir_func);
                         }
                     }
@@ -174,6 +174,53 @@ impl Lowerer {
             .params
             .iter()
             .map(|p| (p.name.clone(), self.lower_type(&p.ty)))
+            .collect();
+
+        let return_type = func
+            .return_type
+            .as_ref()
+            .map(|t| self.lower_type(t))
+            .unwrap_or(IrType::Void);
+
+        let mut last_value = None;
+        for stmt in &func.body {
+            last_value = self.lower_stmt(stmt);
+        }
+
+        let terminator = IrTerminator::Return(last_value);
+        self.finish_block(terminator);
+
+        Some(IrFunction {
+            name: func.name.clone(),
+            params,
+            return_type,
+            blocks: std::mem::take(&mut self.blocks),
+        })
+    }
+
+    /// Lower a method (like lower_function but handles self as a pointer)
+    fn lower_method(&mut self, func: &ast::Function, self_type: &str) -> Option<IrFunction> {
+        self.current_block.clear();
+        self.current_label = "entry".to_string();
+        self.blocks.clear();
+        self.block_counter = 0;
+        self.loop_stack.clear();
+        self.variable_types.clear();
+
+        // For methods, 'self' should be tracked as the struct type for field access
+        self.variable_types.insert("self".to_string(), self_type.to_string());
+
+        let params: Vec<_> = func
+            .params
+            .iter()
+            .map(|p| {
+                // If this is 'self' param, make it a pointer to the struct
+                if p.name == "self" {
+                    (p.name.clone(), IrType::Ptr(Box::new(IrType::Struct(self_type.to_string()))))
+                } else {
+                    (p.name.clone(), self.lower_type(&p.ty))
+                }
+            })
             .collect();
 
         let return_type = func

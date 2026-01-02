@@ -130,8 +130,10 @@ pub enum IrValue {
     ConstBool(bool),
     /// String constant
     ConstString(String),
-    /// Variable reference
+    /// Variable reference (loads the value)
     Var(String),
+    /// Variable pointer reference (passes the pointer directly, for self params)
+    VarPtr(String),
     /// Unit value
     Unit,
 }

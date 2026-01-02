@@ -1,22 +1,19 @@
-// Traits example - trait definitions and implementations
+// Traits example - trait definitions and method implementations
 
-trait Add
-    fn add(a: i64, b: i64) -> i64
+trait Describable
+    fn describe(self) -> i64
 
 struct Point
     x: i64
     y: i64
 
-fn add_points(p1_x: i64, p1_y: i64, p2_x: i64, p2_y: i64) -> i64
-    (p1_x + p2_x) + (p1_y + p2_y)
+impl Describable for Point
+    fn describe(self) -> i64
+        self.x + self.y
 
 fn main() -> i64
-    // Create points and add them
-    let p1 = Point(x: 3, y: 4)
-    let p2 = Point(x: 1, y: 2)
+    // Create a point
+    let p = Point(x: 10, y: 20)
 
-    // Access fields and compute
-    let sum_x = p1.x + p2.x
-    let sum_y = p1.y + p2.y
-
-    sum_x + sum_y
+    // Call trait method - should return 30
+    p.describe()

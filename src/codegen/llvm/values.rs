@@ -37,6 +37,14 @@ impl<'ctx> CodeGen<'ctx> {
                     .build_load(ty, *ptr, name)
                     .map_err(|e| format!("Failed to build load: {}", e))
             }
+            IrValue::VarPtr(name) => {
+                // Return the pointer directly without loading (for self params in method calls)
+                let ptr = self
+                    .variables
+                    .get(name)
+                    .ok_or_else(|| format!("Variable not found: {}", name))?;
+                Ok((*ptr).into())
+            }
             IrValue::Unit => {
                 Ok(self.context.i64_type().const_zero().into())
             }

@@ -260,7 +260,8 @@ impl Lowerer {
         let mangled_name = format!("{}_{}", struct_type_name, method_name);
 
         // Build args: self (receiver ptr) + other args
-        let mut ir_args = vec![IrValue::Var(receiver_var)];
+        // Use VarPtr to pass the pointer directly, not load the struct value
+        let mut ir_args = vec![IrValue::VarPtr(receiver_var)];
         for arg in args {
             if let Some(val) = self.lower_expr(arg) {
                 ir_args.push(val);
