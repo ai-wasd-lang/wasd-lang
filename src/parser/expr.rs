@@ -225,6 +225,11 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let field = self.expect_ident()?;
                 expr = Expr::FieldAccess(Box::new(expr), field, span);
+            } else if self.check(&Token::Question) {
+                // Try operator: expr?
+                let span = self.current_span();
+                self.advance();
+                expr = Expr::Try(Box::new(expr), span);
             } else {
                 break;
             }

@@ -207,6 +207,9 @@ impl Monomorphizer {
             Expr::Await(e, span) => {
                 Expr::Await(Box::new(self.transform_expr(e)), span.clone())
             }
+            Expr::Try(e, span) => {
+                Expr::Try(Box::new(self.transform_expr(e)), span.clone())
+            }
         }
     }
 

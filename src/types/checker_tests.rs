@@ -265,6 +265,31 @@ fn main() with [IO]
     }
 
     #[test]
+    fn test_try_operator_basic() {
+        // Test that ? operator parses and type checks
+        let source = r#"fn may_fail() -> i64
+    42
+
+fn main() -> i64
+    let result = may_fail()?
+    result
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_try_operator_on_call() {
+        // Test ? operator on function call
+        let source = r#"fn get_value() -> i64
+    42
+
+fn main() -> i64
+    get_value()?
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
     fn test_exhaustive_match() {
         let source = r#"enum Option[T]
     Some(T)

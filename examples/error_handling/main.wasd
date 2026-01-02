@@ -1,0 +1,27 @@
+// Error handling with ? operator example
+// The ? operator propagates errors from Result/Option types
+
+use std.io
+
+// A function that may fail
+fn get_value() -> i64
+    42
+
+// A function that may fail with a specific error
+fn divide(a: i64, b: i64) -> i64
+    if b == 0
+        0  // Would return Err in full implementation
+    else
+        a / b
+
+// Using the ? operator to propagate potential errors
+fn compute() -> i64
+    let x = get_value()?
+    let y = divide(x, 2)?
+    y
+
+fn main() -> i64 with [IO]
+    println("Error handling with ? operator:")
+    let result = compute()?
+    println("Result computed successfully")
+    result

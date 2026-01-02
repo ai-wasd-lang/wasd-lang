@@ -239,6 +239,9 @@ pub enum Expr {
     },
     /// Await expression: await expr
     Await(Box<Expr>, Span),
+    /// Try expression (? operator): expr?
+    /// Propagates errors from Result/Option types
+    Try(Box<Expr>, Span),
 }
 
 /// Binary operators.

@@ -122,6 +122,15 @@ impl Lowerer {
                 // Real async runtime support would transform this into state machine
                 self.lower_expr(expr)
             }
+            ast::Expr::Try(expr, _) => {
+                // For now, the ? operator is a pass-through at IR level
+                // Full implementation would:
+                // 1. Check if value is error variant
+                // 2. If error, return early with the error
+                // 3. If success, unwrap and continue
+                // For now, just evaluate the inner expression
+                self.lower_expr(expr)
+            }
             _ => None,
         }
     }

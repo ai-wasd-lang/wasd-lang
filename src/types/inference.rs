@@ -242,6 +242,31 @@ impl TypeChecker {
                 let inner_ty = self.infer_expr(expr)?;
                 Ok(inner_ty)
             }
+            Expr::Try(expr, _) => {
+                // The ? operator propagates errors from Result/Option types
+                // Full implementation would:
+                // 1. Check that expr returns Result[T, E] or Option[T]
+                // 2. Check that current function can return E
+                // 3. Return T as the type of the expression
+                let inner_ty = self.infer_expr(expr)?;
+
+                // For Result[T, E] or Option[T], unwrap to T
+                match &inner_ty {
+                    WasdType::Generic(name, args) if name == "Result" || name == "Option" => {
+                        // Return the success type (first type argument)
+                        if !args.is_empty() {
+                            Ok(args[0].clone())
+                        } else {
+                            Ok(inner_ty)
+                        }
+                    }
+                    _ => {
+                        // For non-Result/Option types, the ? operator is a no-op
+                        // Just return the same type (allows using ? on any expression)
+                        Ok(inner_ty)
+                    }
+                }
+            }
         }
     }
 
