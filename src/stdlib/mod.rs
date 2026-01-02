@@ -6,6 +6,7 @@
 #![allow(dead_code)]
 
 pub mod collections;
+pub mod fs;
 pub mod io;
 pub mod prelude;
 pub mod string;
@@ -44,6 +45,7 @@ pub fn get_stdlib() -> HashMap<String, StdModule> {
     let mut modules = HashMap::new();
 
     modules.insert("std.io".to_string(), io::module());
+    modules.insert("std.fs".to_string(), fs::module());
     modules.insert("std.prelude".to_string(), prelude::module());
     modules.insert("std.types".to_string(), types::module());
     modules.insert("std.collections".to_string(), collections::module());

@@ -109,6 +109,54 @@ impl<'ctx> CodeGen<'ctx> {
         let strcat_type = i8_ptr_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
         let strcat_fn = self.module.add_function("strcat", strcat_type, None);
         self.functions.insert("strcat".to_string(), strcat_fn);
+
+        // File I/O functions (stdio.h)
+        // fopen: (char*, char*) -> FILE* (as i64)
+        let fopen_type = i8_ptr_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
+        let fopen_fn = self.module.add_function("fopen", fopen_type, None);
+        self.functions.insert("fopen".to_string(), fopen_fn);
+
+        // fclose: (FILE*) -> i32
+        let fclose_type = i32_type.fn_type(&[i8_ptr_type.into()], false);
+        let fclose_fn = self.module.add_function("fclose", fclose_type, None);
+        self.functions.insert("fclose".to_string(), fclose_fn);
+
+        // fread: (void*, size_t, size_t, FILE*) -> size_t
+        let fread_type = i64_type.fn_type(
+            &[i8_ptr_type.into(), i64_type.into(), i64_type.into(), i8_ptr_type.into()],
+            false,
+        );
+        let fread_fn = self.module.add_function("fread", fread_type, None);
+        self.functions.insert("fread".to_string(), fread_fn);
+
+        // fwrite: (void*, size_t, size_t, FILE*) -> size_t
+        let fwrite_type = i64_type.fn_type(
+            &[i8_ptr_type.into(), i64_type.into(), i64_type.into(), i8_ptr_type.into()],
+            false,
+        );
+        let fwrite_fn = self.module.add_function("fwrite", fwrite_type, None);
+        self.functions.insert("fwrite".to_string(), fwrite_fn);
+
+        // fputs: (char*, FILE*) -> i32
+        let fputs_type = i32_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], false);
+        let fputs_fn = self.module.add_function("fputs", fputs_type, None);
+        self.functions.insert("fputs".to_string(), fputs_fn);
+
+        // access: (char*, int) -> int (for File_exists)
+        let access_type = i32_type.fn_type(&[i8_ptr_type.into(), i32_type.into()], false);
+        let access_fn = self.module.add_function("access", access_type, None);
+        self.functions.insert("access".to_string(), access_fn);
+
+        // malloc: (size_t) -> void*
+        let malloc_type = i8_ptr_type.fn_type(&[i64_type.into()], false);
+        let malloc_fn = self.module.add_function("malloc", malloc_type, None);
+        self.functions.insert("malloc".to_string(), malloc_fn);
+
+        // free: (void*) -> void
+        let void_type = self.context.void_type();
+        let free_type = void_type.fn_type(&[i8_ptr_type.into()], false);
+        let free_fn = self.module.add_function("free", free_type, None);
+        self.functions.insert("free".to_string(), free_fn);
     }
 
     /// Create a global string constant and return a pointer to it

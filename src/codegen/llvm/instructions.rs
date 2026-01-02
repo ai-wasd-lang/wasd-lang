@@ -101,6 +101,10 @@ impl<'ctx> CodeGen<'ctx> {
                     "String_contains" => "strstr",
                     "String_concat" => "strcat",
                     "String_copy" => "strcpy",
+                    // File I/O stdlib functions
+                    "File_open" => "fopen",
+                    "File_close" => "fclose",
+                    "File_write" => "fputs",
                     other => other,
                 };
 

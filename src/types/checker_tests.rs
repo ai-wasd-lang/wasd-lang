@@ -165,7 +165,7 @@ fn main() -> i64
     fn test_use_stdlib_io() {
         let source = r#"use std.io
 
-fn main()
+fn main() with [IO]
     print("hello")
 "#;
         assert!(check(source).is_ok());
@@ -175,7 +175,7 @@ fn main()
     fn test_use_stdlib_prelude() {
         let source = r#"use std.prelude.*
 
-fn main()
+fn main() with [IO]
     println("hello")
 "#;
         assert!(check(source).is_ok());
@@ -185,7 +185,7 @@ fn main()
     fn test_use_specific_function() {
         let source = r#"use std.io.println
 
-fn main()
+fn main() with [IO]
     println("world")
 "#;
         assert!(check(source).is_ok());
@@ -237,7 +237,7 @@ fn main()
     fn test_use_stdlib_collections() {
         let source = r#"use std.collections
 
-fn main()
+fn main() with [Alloc]
     let v = Vec_new()
 "#;
         assert!(check(source).is_ok());
@@ -247,8 +247,19 @@ fn main()
     fn test_use_stdlib_string() {
         let source = r#"use std.string
 
-fn main()
+fn main() with [Alloc]
     let s = String_new()
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_use_stdlib_fs() {
+        let source = r#"use std.fs
+
+fn main() with [IO]
+    let file = File_open("test.txt", "r")
+    File_close(file)
 "#;
         assert!(check(source).is_ok());
     }

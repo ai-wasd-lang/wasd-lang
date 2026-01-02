@@ -1,0 +1,23 @@
+// Standard library example in WASD
+// Demonstrates various stdlib modules
+
+use std.io
+use std.types
+
+// Using Option type constructors from std.types
+fn get_value(has_value: bool) -> i64
+    if has_value
+        42
+    else
+        0
+
+// Main function with IO effect for printing
+fn main() -> i64 with [IO]
+    println("WASD Standard Library Demo")
+    println("==========================")
+
+    // Option-like pattern (using integers for now)
+    let result = get_value(true)
+    println("Value from get_value(true):")
+
+    result
