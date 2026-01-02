@@ -1,0 +1,147 @@
+//! Token definitions for the Lux lexer.
+
+use std::fmt;
+
+/// Represents a source code location for error reporting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+}
+
+/// Tokens produced by the Lux lexer.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Token {
+    // Literals
+    Int(i64),
+    Float(f64),
+    String(String),
+    Bool(bool),
+
+    // Identifiers and keywords
+    Ident(String),
+    Let,
+    Mut,
+    Fn,
+    Struct,
+    Enum,
+    Match,
+    If,
+    Else,
+    While,
+    For,
+    In,
+    Return,
+    With,
+    Heap,
+    Rc,
+    Arc,
+
+    // Operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Eq,
+    EqEq,
+    NotEq,
+    Lt,
+    LtEq,
+    Gt,
+    GtEq,
+    And,
+    Or,
+    Not,
+    Ampersand,
+    Arrow,
+    FatArrow,
+    Question,
+
+    // Delimiters
+    LParen,
+    RParen,
+    LBracket,
+    RBracket,
+    LBrace,
+    RBrace,
+    Comma,
+    Colon,
+    DoubleColon,
+    Dot,
+
+    // Indentation
+    Indent,
+    Dedent,
+    Newline,
+
+    // Special
+    Eof,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::Int(n) => write!(f, "{}", n),
+            Token::Float(n) => write!(f, "{}", n),
+            Token::String(s) => write!(f, "\"{}\"", s),
+            Token::Bool(b) => write!(f, "{}", b),
+            Token::Ident(s) => write!(f, "{}", s),
+            Token::Let => write!(f, "let"),
+            Token::Mut => write!(f, "mut"),
+            Token::Fn => write!(f, "fn"),
+            Token::Struct => write!(f, "struct"),
+            Token::Enum => write!(f, "enum"),
+            Token::Match => write!(f, "match"),
+            Token::If => write!(f, "if"),
+            Token::Else => write!(f, "else"),
+            Token::While => write!(f, "while"),
+            Token::For => write!(f, "for"),
+            Token::In => write!(f, "in"),
+            Token::Return => write!(f, "return"),
+            Token::With => write!(f, "with"),
+            Token::Heap => write!(f, "heap"),
+            Token::Rc => write!(f, "rc"),
+            Token::Arc => write!(f, "arc"),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Star => write!(f, "*"),
+            Token::Slash => write!(f, "/"),
+            Token::Percent => write!(f, "%"),
+            Token::Eq => write!(f, "="),
+            Token::EqEq => write!(f, "=="),
+            Token::NotEq => write!(f, "!="),
+            Token::Lt => write!(f, "<"),
+            Token::LtEq => write!(f, "<="),
+            Token::Gt => write!(f, ">"),
+            Token::GtEq => write!(f, ">="),
+            Token::And => write!(f, "and"),
+            Token::Or => write!(f, "or"),
+            Token::Not => write!(f, "not"),
+            Token::Ampersand => write!(f, "&"),
+            Token::Arrow => write!(f, "->"),
+            Token::FatArrow => write!(f, "=>"),
+            Token::Question => write!(f, "?"),
+            Token::LParen => write!(f, "("),
+            Token::RParen => write!(f, ")"),
+            Token::LBracket => write!(f, "["),
+            Token::RBracket => write!(f, "]"),
+            Token::LBrace => write!(f, "{{"),
+            Token::RBrace => write!(f, "}}"),
+            Token::Comma => write!(f, ","),
+            Token::Colon => write!(f, ":"),
+            Token::DoubleColon => write!(f, "::"),
+            Token::Dot => write!(f, "."),
+            Token::Indent => write!(f, "<INDENT>"),
+            Token::Dedent => write!(f, "<DEDENT>"),
+            Token::Newline => write!(f, "<NEWLINE>"),
+            Token::Eof => write!(f, "<EOF>"),
+        }
+    }
+}
