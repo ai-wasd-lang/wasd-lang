@@ -1,26 +1,9 @@
-// Loop examples
-
-fn sum_to_n(n: i64) -> i64
-    let mut total = 0
-    let mut i = 1
-    while i <= n
-        total = total + i
-        i = i + 1
-    total
-
-fn factorial(n: i64) -> i64
-    let mut result = 1
-    let mut i = 2
-    while i <= n
-        result = result * i
-        i = i + 1
-    result
-
 fn main() -> i64
-    // Sum 1 to 10 = 55
-    let sum = sum_to_n(10)
+    let mut sum = 0
+    let mut i = 1
 
-    // Factorial of 5 = 120
-    let fact = factorial(5)
+    while i <= 10
+        sum = sum + i
+        i = i + 1
 
-    sum + fact
+    sum

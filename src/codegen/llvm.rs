@@ -25,6 +25,8 @@ pub struct CodeGen<'ctx> {
     functions: HashMap<String, FunctionValue<'ctx>>,
     blocks: HashMap<String, BasicBlock<'ctx>>,
     string_counter: usize,
+    /// Track variables that hold pointers (from GEP) rather than values
+    gep_results: std::collections::HashSet<String>,
 }
 
 impl<'ctx> CodeGen<'ctx> {
@@ -42,6 +44,7 @@ impl<'ctx> CodeGen<'ctx> {
             functions: HashMap::new(),
             blocks: HashMap::new(),
             string_counter: 0,
+            gep_results: std::collections::HashSet::new(),
         };
 
         // Declare C library functions
@@ -160,6 +163,7 @@ impl<'ctx> CodeGen<'ctx> {
         self.variables.clear();
         self.variable_types.clear();
         self.blocks.clear();
+        self.gep_results.clear();
 
         // First pass: create all basic blocks
         for ir_block in &func.blocks {
@@ -228,12 +232,25 @@ impl<'ctx> CodeGen<'ctx> {
             }
             IrInst::Store { value, ptr } => {
                 let llvm_value = self.get_llvm_value(value)?;
-                let ptr_value = *self
+                let ptr_alloca = *self
                     .variables
                     .get(ptr)
                     .ok_or_else(|| format!("Variable not found: {}", ptr))?;
+
+                // Check if this is a GEP result (alloca holding a pointer)
+                let actual_ptr = if self.gep_results.contains(ptr) {
+                    // For GEP results, load the pointer value first
+                    let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+                    self.builder
+                        .build_load(ptr_ty, ptr_alloca, "actual_ptr")
+                        .map_err(|e| format!("Failed to load pointer: {}", e))?
+                        .into_pointer_value()
+                } else {
+                    ptr_alloca
+                };
+
                 self.builder
-                    .build_store(ptr_value, llvm_value)
+                    .build_store(actual_ptr, llvm_value)
                     .map_err(|e| format!("Failed to build store: {}", e))?;
             }
             IrInst::Load { dest, ptr, ty } => {
@@ -318,8 +335,48 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                 }
             }
-            IrInst::GetElementPtr { .. } => {
-                // TODO: Implement GEP
+            IrInst::GetElementPtr { dest, ptr, indices } => {
+                // Get the pointer to index into
+                let ptr_val = *self.variables.get(ptr)
+                    .ok_or_else(|| format!("Variable not found: {}", ptr))?;
+
+                // Convert indices to LLVM values
+                let mut llvm_indices = Vec::new();
+                for idx in indices {
+                    match idx {
+                        IrValue::ConstInt(val, _) => {
+                            llvm_indices.push(self.context.i32_type().const_int(*val as u64, false));
+                        }
+                        _ => {
+                            return Err("Non-constant GEP index not supported".to_string());
+                        }
+                    }
+                }
+
+                // Build the GEP instruction
+                // For now, use i64 as the base element type since structs map to i64
+                let i64_ty = self.context.i64_type();
+                let gep = unsafe {
+                    self.builder.build_gep(
+                        i64_ty,
+                        ptr_val,
+                        &llvm_indices.iter().map(|i| (*i).into()).collect::<Vec<_>>(),
+                        dest,
+                    )
+                }.map_err(|e| format!("Failed to build GEP: {}", e))?;
+
+                // Store the GEP result pointer directly in variables
+                // Create an alloca to hold the pointer
+                let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+                let alloca = self.builder
+                    .build_alloca(ptr_ty, &format!("{}_alloca", dest))
+                    .map_err(|e| format!("Failed to build alloca: {}", e))?;
+                self.builder
+                    .build_store(alloca, gep)
+                    .map_err(|e| format!("Failed to store: {}", e))?;
+                self.variables.insert(dest.clone(), alloca);
+                // Mark this as a GEP result so Store knows to load the pointer first
+                self.gep_results.insert(dest.clone());
             }
             IrInst::HeapAlloc { dest, ty, value } => {
                 // Get or declare malloc
