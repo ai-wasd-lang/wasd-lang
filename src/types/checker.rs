@@ -8,6 +8,22 @@ use crate::parser::{EnumDef, ExternFn, Function, ImplDef, Item, Program, StructD
 use crate::stdlib;
 use std::collections::HashMap;
 
+/// Trait method signature for checking implementations.
+#[derive(Debug, Clone)]
+pub struct TraitMethodSig {
+    pub name: String,
+    pub params: Vec<WasdType>,
+    pub return_type: WasdType,
+}
+
+/// Registered trait information.
+#[derive(Debug, Clone)]
+pub struct TraitInfo {
+    pub name: String,
+    pub generics: Vec<String>,
+    pub methods: Vec<TraitMethodSig>,
+}
+
 /// The WASD type checker.
 pub struct TypeChecker {
     /// Type environment mapping names to types
@@ -20,6 +36,10 @@ pub struct TypeChecker {
     pub exhaustiveness: ExhaustivenessChecker,
     /// Current function's declared effects (for effect validation)
     pub current_effects: Vec<String>,
+    /// Registered traits
+    traits: HashMap<String, TraitInfo>,
+    /// Implementations: maps (trait_name, type_name) -> impl info
+    impls: HashMap<(String, String), Vec<String>>, // method names
 }
 
 impl TypeChecker {
@@ -31,6 +51,8 @@ impl TypeChecker {
             substitutions: HashMap::new(),
             exhaustiveness: ExhaustivenessChecker::new(),
             current_effects: Vec::new(),
+            traits: HashMap::new(),
+            impls: HashMap::new(),
         }
     }
 
@@ -84,6 +106,15 @@ impl TypeChecker {
         for item in &program.items {
             if let Item::Enum(e) = item {
                 self.exhaustiveness.register_enum(e);
+            }
+        }
+
+        // Register traits before functions (traits can be used in bounds)
+        for item in &program.items {
+            if let Item::Trait(t) = item {
+                if let Err(e) = self.register_trait(t) {
+                    errors.push(e);
+                }
             }
         }
 
@@ -175,15 +206,86 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn register_trait(&mut self, _trait_def: &TraitDef) -> Result<(), String> {
+    fn register_trait(&mut self, trait_def: &TraitDef) -> Result<(), String> {
+        let mut methods = Vec::new();
+
+        for method in &trait_def.methods {
+            let params: Result<Vec<WasdType>, String> = method
+                .params
+                .iter()
+                .map(|p| self.ast_type_to_wasd_type(&p.ty))
+                .collect();
+
+            let return_type = method
+                .return_type
+                .as_ref()
+                .map(|t| self.ast_type_to_wasd_type(t))
+                .transpose()?
+                .unwrap_or(WasdType::Unit);
+
+            methods.push(TraitMethodSig {
+                name: method.name.clone(),
+                params: params?,
+                return_type,
+            });
+        }
+
+        let trait_info = TraitInfo {
+            name: trait_def.name.clone(),
+            generics: trait_def.generics.clone(),
+            methods,
+        };
+
+        self.traits.insert(trait_def.name.clone(), trait_info);
         Ok(())
     }
 
     fn check_impl(&mut self, impl_def: &ImplDef) -> Result<(), String> {
+        // Type check all methods in the impl
         for method in &impl_def.methods {
             self.check_function(method)?;
         }
+
+        // If implementing a trait, verify all required methods are present
+        if let Some(trait_name) = &impl_def.trait_name {
+            if let Some(trait_info) = self.traits.get(trait_name).cloned() {
+                // Get the type name being implemented for
+                let type_name = match &impl_def.target_type {
+                    Type::Named(n) => n.clone(),
+                    Type::Generic(n, _) => n.clone(),
+                    _ => return Ok(()), // Skip complex types for now
+                };
+
+                // Check that all required trait methods are implemented
+                let impl_method_names: Vec<&str> = impl_def
+                    .methods
+                    .iter()
+                    .map(|m| m.name.as_str())
+                    .collect();
+
+                for required_method in &trait_info.methods {
+                    if !impl_method_names.contains(&required_method.name.as_str()) {
+                        return Err(format!(
+                            "Missing trait method '{}' in impl {} for {}",
+                            required_method.name, trait_name, type_name
+                        ));
+                    }
+                }
+
+                // Register this implementation
+                self.impls.insert(
+                    (trait_name.clone(), type_name),
+                    impl_method_names.iter().map(|s| s.to_string()).collect(),
+                );
+            }
+        }
+
         Ok(())
+    }
+
+    /// Check if a type implements a trait
+    pub fn type_implements_trait(&self, type_name: &str, trait_name: &str) -> bool {
+        self.impls.contains_key(&(trait_name.to_string(), type_name.to_string()))
     }
 
     fn check_function(&mut self, func: &Function) -> Result<(), String> {

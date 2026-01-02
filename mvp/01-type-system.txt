@@ -1,17 +1,20 @@
 TYPE SYSTEM - MISSING/INCOMPLETE
 =================================
 
+[x] Trait registration and impl checking
+    - register_trait stores trait info with methods
+    - check_impl verifies all required methods are present
+    - Error on missing trait methods
+
 [ ] Trait bounds checking
-    - Currently register_trait is a no-op
-    - No enforcement of trait constraints on generic types
     - "where T: Add" syntax parsed but not enforced
+    - Need to check bounds at generic instantiation
 
 [ ] Struct type registration
     - register_struct is minimal stub
     - Field type validation incomplete
 
 [ ] Trait method binding
-    - check_impl only validates method names exist
     - No return type checking for trait impls
     - No self parameter validation
 
