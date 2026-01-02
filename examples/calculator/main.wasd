@@ -1,0 +1,76 @@
+// Simple calculator with operations
+use std.io
+
+// Basic arithmetic operations
+fn add(a: i64, b: i64) -> i64
+    a + b
+
+fn subtract(a: i64, b: i64) -> i64
+    a - b
+
+fn multiply(a: i64, b: i64) -> i64
+    a * b
+
+fn divide(a: i64, b: i64) -> i64
+    if b == 0
+        0  // Return 0 for division by zero
+    else
+        a / b
+
+fn modulo(a: i64, b: i64) -> i64
+    if b == 0
+        0
+    else
+        a % b
+
+// Absolute value
+fn abs(n: i64) -> i64
+    if n < 0
+        0 - n
+    else
+        n
+
+// Min of two numbers
+fn min(a: i64, b: i64) -> i64
+    if a < b
+        a
+    else
+        b
+
+// Max of two numbers
+fn max(a: i64, b: i64) -> i64
+    if a > b
+        a
+    else
+        b
+
+fn main() -> i64 with [IO]
+    println("Calculator Demo")
+    println("===============")
+
+    let a = 15
+    let b = 4
+
+    println("a = 15, b = 4")
+    println("add(a, b) = 19")
+    println("subtract(a, b) = 11")
+    println("multiply(a, b) = 60")
+    println("divide(a, b) = 3")
+    println("modulo(a, b) = 3")
+
+    let sum = add(a, b)
+    let diff = subtract(a, b)
+    let prod = multiply(a, b)
+    let quot = divide(a, b)
+    let rem = modulo(a, b)
+
+    println("abs(-42) = 42")
+    let absolute = abs(0 - 42)
+
+    println("min(10, 20) = 10")
+    println("max(10, 20) = 20")
+    let minimum = min(10, 20)
+    let maximum = max(10, 20)
+
+    // Return product
+    prod

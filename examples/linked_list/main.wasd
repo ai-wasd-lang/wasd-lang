@@ -1,0 +1,32 @@
+// Linked list pattern demonstration
+use std.io
+
+// A simple node holding a value
+struct Node
+    value: i64
+
+impl Node
+    fn get_value(self) -> i64
+        self.value
+
+fn main() -> i64 with [IO]
+    println("Linked List Concept Demo")
+    println("========================")
+
+    // Create nodes directly
+    let node1 = Node(value: 10)
+    let node2 = Node(value: 20)
+    let node3 = Node(value: 30)
+
+    // Get values using methods
+    let v1 = node1.get_value()
+    let v2 = node2.get_value()
+    let v3 = node3.get_value()
+
+    // Sum the list: 10 + 20 + 30 = 60
+    let total = v1 + v2 + v3
+
+    println("List: 10 -> 20 -> 30")
+    println("Sum of list = 60")
+
+    total

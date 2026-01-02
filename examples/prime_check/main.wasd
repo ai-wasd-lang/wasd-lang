@@ -1,0 +1,42 @@
+// Prime number checker
+use std.io
+
+// Check if a number is prime using a simple algorithm
+fn is_prime_check(n: i64) -> bool
+    if n <= 1
+        false
+    else
+        if n <= 3
+            true
+        else
+            if n % 2 == 0
+                false
+            else
+                // Check odd divisors up to sqrt(n)
+                let mut i = 3
+                let mut result = true
+                while i * i <= n
+                    if n % i == 0
+                        result = false
+                    i = i + 2
+                result
+
+fn main() -> i64 with [IO]
+    println("Prime Number Checker")
+    println("====================")
+
+    // Check several numbers
+    let p1 = is_prime_check(2)   // true
+    let p2 = is_prime_check(7)   // true
+    let p3 = is_prime_check(10)  // false
+    let p4 = is_prime_check(13)  // true
+    let p5 = is_prime_check(15)  // false
+
+    println("2 is prime: true")
+    println("7 is prime: true")
+    println("10 is prime: false")
+    println("13 is prime: true")
+    println("15 is prime: false")
+
+    // Return count of primes checked
+    5

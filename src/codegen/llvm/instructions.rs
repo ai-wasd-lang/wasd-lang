@@ -95,6 +95,8 @@ impl<'ctx> CodeGen<'ctx> {
                 let actual_func = match func.as_str() {
                     "println" => "puts",
                     "print" => "printf",
+                    // IO functions that need special handling for stderr
+                    "eprint" | "eprintln" => "fprintf",
                     // String stdlib functions
                     "String_len" => "strlen",
                     "String_eq" | "String_cmp" => "strcmp",

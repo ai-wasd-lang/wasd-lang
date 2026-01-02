@@ -33,10 +33,60 @@ pub fn module() -> StdModule {
         },
     );
 
-    // TODO: Add more IO functions
-    // - read_line: () -> String with [IO]
-    // - eprint: (String) -> i32 with [IO]
-    // - eprintln: (String) -> i32 with [IO]
+    // read_line: () -> String with [IO]
+    // Reads a line from stdin
+    functions.insert(
+        "read_line".to_string(),
+        WasdType::Function {
+            params: vec![],
+            ret: Box::new(WasdType::String),
+            effects: vec!["IO".to_string()],
+        },
+    );
+
+    // eprint: (String) -> i32 with [IO]
+    // Prints a string to stderr (no newline)
+    functions.insert(
+        "eprint".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::String],
+            ret: Box::new(WasdType::I32),
+            effects: vec!["IO".to_string()],
+        },
+    );
+
+    // eprintln: (String) -> i32 with [IO]
+    // Prints a string to stderr with a newline
+    functions.insert(
+        "eprintln".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::String],
+            ret: Box::new(WasdType::I32),
+            effects: vec!["IO".to_string()],
+        },
+    );
+
+    // print_int: (i64) -> i32 with [IO]
+    // Prints an integer to stdout
+    functions.insert(
+        "print_int".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::I64],
+            ret: Box::new(WasdType::I32),
+            effects: vec!["IO".to_string()],
+        },
+    );
+
+    // print_bool: (bool) -> i32 with [IO]
+    // Prints a boolean to stdout
+    functions.insert(
+        "print_bool".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::Bool],
+            ret: Box::new(WasdType::I32),
+            effects: vec!["IO".to_string()],
+        },
+    );
 
     StdModule::with_functions(functions)
 }

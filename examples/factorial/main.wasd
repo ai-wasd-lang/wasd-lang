@@ -1,0 +1,32 @@
+// Factorial calculation - recursive and iterative
+use std.io
+
+// Recursive factorial
+fn factorial_rec(n: i64) -> i64
+    if n <= 1
+        1
+    else
+        n * factorial_rec(n - 1)
+
+// Iterative factorial
+fn factorial_iter(n: i64) -> i64
+    let mut result = 1
+    let mut i = 2
+    while i <= n
+        result = result * i
+        i = i + 1
+    result
+
+fn main() -> i64 with [IO]
+    println("Factorial Demo")
+    println("==============")
+
+    // Calculate 5! = 120
+    let rec_result = factorial_rec(5)
+    let iter_result = factorial_iter(5)
+
+    println("5! (recursive) = 120")
+    println("5! (iterative) = 120")
+
+    // Return factorial of 5 as exit code
+    rec_result

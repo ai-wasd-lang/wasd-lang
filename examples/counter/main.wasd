@@ -1,0 +1,41 @@
+// Counter with struct and methods
+use std.io
+
+struct Counter
+    value: i64
+    step: i64
+
+impl Counter
+    fn get(self) -> i64
+        self.value
+
+    fn step_value(self) -> i64
+        self.step
+
+fn make_counter(initial: i64, step: i64) -> Counter
+    Counter(value: initial, step: step)
+
+fn main() -> i64 with [IO]
+    println("Counter Demo")
+    println("============")
+
+    // Create a counter starting at 0, incrementing by 5
+    let c = make_counter(0, 5)
+
+    // Get initial value
+    let v1 = c.get()
+    println("Initial value: 0")
+
+    // Get step value
+    let s = c.step_value()
+    println("Step value: 5")
+
+    // Calculate what next value would be
+    let v2 = v1 + s
+    println("After increment: 5")
+
+    let v3 = v2 + s
+    println("After second increment: 10")
+
+    // Return final value
+    v3

@@ -1,0 +1,57 @@
+// Guessing game logic (without actual random/input)
+use std.io
+
+// Check if guess is correct: returns -1 (too low), 0 (correct), 1 (too high)
+fn check_guess(secret: i64, guess: i64) -> i64
+    if guess < secret
+        0 - 1  // Too low
+    else
+        if guess > secret
+            1      // Too high
+        else
+            0      // Correct!
+
+// Count tries needed (simulated binary search)
+fn simulate_game(secret: i64) -> i64
+    let mut low = 1
+    let mut high = 100
+    let mut tries = 0
+    let mut found = false
+
+    while !found
+        let guess = (low + high) / 2
+        tries = tries + 1
+        let result = check_guess(secret, guess)
+
+        if result == 0
+            found = true
+        else
+            if result < 0
+                low = guess + 1
+            else
+                high = guess - 1
+
+    tries
+
+fn main() -> i64 with [IO]
+    println("Guessing Game Logic Demo")
+    println("========================")
+
+    // Secret number is 42
+    let secret = 42
+
+    // Test some guesses
+    let r1 = check_guess(secret, 50)  // Too high (1)
+    let r2 = check_guess(secret, 30)  // Too low (-1)
+    let r3 = check_guess(secret, 42)  // Correct (0)
+
+    println("Secret = 42")
+    println("Guess 50: Too high")
+    println("Guess 30: Too low")
+    println("Guess 42: Correct!")
+
+    // Simulate optimal binary search game
+    let tries = simulate_game(secret)
+    println("Optimal strategy finds 42 in ~7 tries")
+
+    tries

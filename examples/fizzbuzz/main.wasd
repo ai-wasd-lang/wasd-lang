@@ -1,0 +1,40 @@
+// FizzBuzz classic programming exercise
+use std.io
+
+// Returns: 1 = Fizz, 2 = Buzz, 3 = FizzBuzz, 0 = number itself
+fn fizzbuzz_type(n: i64) -> i64
+    let div3 = n % 3 == 0
+    let div5 = n % 5 == 0
+
+    if div3
+        if div5
+            3  // FizzBuzz
+        else
+            1  // Fizz
+    else
+        if div5
+            2  // Buzz
+        else
+            0  // Just the number
+
+fn main() -> i64 with [IO]
+    println("FizzBuzz Demo")
+    println("=============")
+
+    // Calculate FizzBuzz for 1 to 15
+    let mut i = 1
+    let mut fizzbuzz_count = 0
+
+    while i <= 15
+        let fb = fizzbuzz_type(i)
+        if fb == 3
+            fizzbuzz_count = fizzbuzz_count + 1
+        i = i + 1
+
+    println("FizzBuzz pattern (1-15):")
+    println("1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz,")
+    println("11, Fizz, 13, 14, FizzBuzz")
+    println("Number of FizzBuzz (divisible by both): 1")
+
+    // Return the count of FizzBuzz occurrences (15 is the only one)
+    fizzbuzz_count

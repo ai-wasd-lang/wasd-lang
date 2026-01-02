@@ -157,6 +157,19 @@ impl<'ctx> CodeGen<'ctx> {
         let free_type = void_type.fn_type(&[i8_ptr_type.into()], false);
         let free_fn = self.module.add_function("free", free_type, None);
         self.functions.insert("free".to_string(), free_fn);
+
+        // fprintf: (FILE*, char*, ...) -> i32 (for eprint/eprintln)
+        let fprintf_type = i32_type.fn_type(&[i8_ptr_type.into(), i8_ptr_type.into()], true);
+        let fprintf_fn = self.module.add_function("fprintf", fprintf_type, None);
+        self.functions.insert("fprintf".to_string(), fprintf_fn);
+
+        // fgets: (char*, int, FILE*) -> char* (for read_line)
+        let fgets_type = i8_ptr_type.fn_type(&[i8_ptr_type.into(), i32_type.into(), i8_ptr_type.into()], false);
+        let fgets_fn = self.module.add_function("fgets", fgets_type, None);
+        self.functions.insert("fgets".to_string(), fgets_fn);
+
+        // stdin, stdout, stderr - will be loaded as external globals
+        // These need special handling in the codegen when used
     }
 
     /// Create a global string constant and return a pointer to it

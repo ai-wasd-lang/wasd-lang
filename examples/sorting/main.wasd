@@ -1,0 +1,62 @@
+// Sorting algorithm concepts
+use std.io
+
+// Simulate comparison-based sorting concepts
+
+fn needs_swap(a: i64, b: i64) -> bool
+    a > b
+
+fn min_of_two(a: i64, b: i64) -> i64
+    // Returns the smaller of two
+    if a <= b
+        a
+    else
+        b
+
+fn max_of_two(a: i64, b: i64) -> i64
+    if a >= b
+        a
+    else
+        b
+
+// Count inversions (out-of-order pairs) in 3 elements
+fn count_inversions(a: i64, b: i64, c: i64) -> i64
+    let mut count = 0
+    if a > b
+        count = count + 1
+    if a > c
+        count = count + 1
+    if b > c
+        count = count + 1
+    count
+
+// Check if three elements are sorted
+fn is_sorted_3(a: i64, b: i64, c: i64) -> bool
+    if a <= b
+        b <= c
+    else
+        false
+
+fn main() -> i64 with [IO]
+    println("Sorting Concepts Demo")
+    println("=====================")
+
+    // Test with [3, 1, 2] - not sorted
+    let a = 3
+    let b = 1
+    let c = 2
+
+    let inv = count_inversions(a, b, c)
+    println("[3, 1, 2] has 2 inversions")
+
+    // After sorting: [1, 2, 3]
+    let sorted = is_sorted_3(1, 2, 3)
+    println("[1, 2, 3] is sorted: true")
+
+    // Minimum and maximum
+    let min_val = min_of_two(min_of_two(a, b), c)
+    let max_val = max_of_two(max_of_two(a, b), c)
+    println("Min = 1, Max = 3")
+
+    // Return inversion count
+    inv

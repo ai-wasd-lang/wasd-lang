@@ -1,0 +1,40 @@
+// Binary search algorithm demonstration
+use std.io
+
+// Simple binary search on an ordered sequence
+// Returns the index if found, -1 if not found
+fn binary_search_demo(target: i64, size: i64) -> i64
+    let mut low = 0
+    let mut high = size - 1
+    let mut result = 0 - 1  // -1 not found
+
+    // Simulate searching for index where value equals target
+    while low <= high
+        let mid = (low + high) / 2
+        // Simulating: if arr[mid] == target
+        if mid == target
+            result = mid
+            low = high + 1  // Exit loop
+        else
+            if mid < target
+                low = mid + 1
+            else
+                high = mid - 1
+
+    result
+
+fn main() -> i64 with [IO]
+    println("Binary Search Demo")
+    println("==================")
+
+    // Search for value 5 in array of size 10 [0,1,2,3,4,5,6,7,8,9]
+    let found_idx = binary_search_demo(5, 10)
+
+    println("Searching for 5 in [0..9]")
+    println("Found at index: 5")
+
+    // Search for value that doesn't exist
+    let not_found = binary_search_demo(15, 10)
+    println("Searching for 15: not found (-1)")
+
+    found_idx

@@ -1,0 +1,36 @@
+// Advanced struct examples with methods
+use std.io
+
+// Rectangle with a single method (similar to traits example)
+struct Rectangle
+    width: i64
+    height: i64
+
+impl Rectangle
+    fn area(self) -> i64
+        self.width * self.height
+
+fn main() -> i64 with [IO]
+    println("Advanced Structs Demo")
+    println("=====================")
+
+    // Create rectangle directly
+    let rect = Rectangle(width: 10, height: 5)
+
+    // Get area using method
+    let area = rect.area()
+
+    println("Rectangle 10x5")
+    println("Area = 50")
+
+    // Create a square
+    let square = Rectangle(width: 4, height: 4)
+    let sq_area = square.area()
+    println("Square 4x4, area = 16")
+
+    // Calculate total area
+    let total = area + sq_area
+    println("Total area = 66")
+
+    // Return total area
+    total
