@@ -4,7 +4,7 @@ use std.io
 fn fib_step(a: i64, b: i64) -> i64
     a + b
 
-fn main() -> i64
+fn main() -> i64 with [IO]
     print("Fibonacci Sequence Demo")
     print("=======================")
     print("Computing: 0, 1, 1, 2, 3, 5, 8...")

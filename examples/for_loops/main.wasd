@@ -1,7 +1,7 @@
 // For loop example
 use std.io
 
-fn main() -> i64
+fn main() -> i64 with [IO]
     print("For Loop Demo")
     print("=============")
 
