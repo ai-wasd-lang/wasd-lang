@@ -69,8 +69,8 @@ pub fn resolve_import(path: &str) -> Option<HashMap<String, WasdType>> {
         let module_path = format!("std.{}", parts[1]);
         let item_name = parts[2];
         stdlib.get(&module_path).and_then(|m| {
-            m.functions.get(item_name).map(|ty| {
-                let mut result = HashMap::new();
+            m.functions.get(item_name).map(|ty: &WasdType| {
+                let mut result: HashMap<String, WasdType> = HashMap::new();
                 result.insert(item_name.to_string(), ty.clone());
                 result
             })

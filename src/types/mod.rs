@@ -6,3 +6,4 @@ mod checker;
 mod types;
 
 pub use checker::TypeChecker;
+pub use types::WasdType;

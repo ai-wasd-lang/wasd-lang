@@ -4,8 +4,9 @@
 
 use super::types::WasdType;
 use crate::parser::{
-    BinOp, EnumDef, Expr, Function, Item, Program, Stmt, StructDef, Type, UnaryOp,
+    BinOp, EnumDef, Expr, Function, Item, Program, Stmt, StructDef, Type, UnaryOp, UseStmt,
 };
+use crate::stdlib;
 use std::collections::HashMap;
 
 /// The WASD type checker.
@@ -21,36 +22,58 @@ pub struct TypeChecker {
 impl TypeChecker {
     /// Create a new type checker.
     pub fn new() -> Self {
-        let mut checker = Self {
+        Self {
             env: HashMap::new(),
             next_var: 0,
             substitutions: HashMap::new(),
-        };
-
-        // Register built-in functions
-        checker.register_builtins();
-
-        checker
+        }
     }
 
-    /// Register built-in functions like print
-    fn register_builtins(&mut self) {
-        // print: (String) -> i32
-        self.env.insert(
-            "print".to_string(),
-            WasdType::Function {
-                params: vec![WasdType::String],
-                ret: Box::new(WasdType::I32),
-                effects: vec!["IO".to_string()],
-            },
-        );
+    /// Process a use statement and add imported symbols to the environment.
+    fn process_use(&mut self, use_stmt: &UseStmt) -> Result<(), String> {
+        let path = use_stmt.path.join(".");
+
+        // Resolve the import from the standard library
+        if let Some(imports) = stdlib::resolve_import(&path) {
+            if use_stmt.wildcard {
+                // Wildcard import: add all items
+                for (name, ty) in imports {
+                    self.env.insert(name, ty);
+                }
+            } else if let Some(alias) = &use_stmt.alias {
+                // Aliased import: use the alias name
+                // For single item imports, get the last component
+                let item_name = use_stmt.path.last().unwrap();
+                if let Some(ty) = imports.get(item_name) {
+                    let ty: WasdType = ty.clone();
+                    self.env.insert(alias.clone(), ty);
+                }
+            } else {
+                // Regular import: add all resolved items
+                for (name, ty) in imports {
+                    self.env.insert(name, ty);
+                }
+            }
+            Ok(())
+        } else {
+            Err(format!("Unknown import path: {}", path))
+        }
     }
 
     /// Type check a complete program.
     pub fn check_program(&mut self, program: &Program) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
-        // First pass: register all function signatures
+        // First pass: process all use statements
+        for item in &program.items {
+            if let Item::Use(use_stmt) = item {
+                if let Err(e) = self.process_use(use_stmt) {
+                    errors.push(e);
+                }
+            }
+        }
+
+        // Second pass: register all function signatures
         for item in &program.items {
             if let Item::Function(f) = item {
                 if let Err(e) = self.register_function(f) {
@@ -59,7 +82,7 @@ impl TypeChecker {
             }
         }
 
-        // Second pass: check function bodies
+        // Third pass: check function bodies and other items
         for item in &program.items {
             if let Err(e) = self.check_item(item) {
                 errors.push(e);
@@ -99,6 +122,7 @@ impl TypeChecker {
 
     fn check_item(&mut self, item: &Item) -> Result<(), String> {
         match item {
+            Item::Use(_) => Ok(()), // Already processed in first pass
             Item::Function(f) => self.check_function(f),
             Item::Struct(s) => self.register_struct(s),
             Item::Enum(e) => self.register_enum(e),

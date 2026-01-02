@@ -17,6 +17,7 @@ mod errors;
 mod ir;
 mod lexer;
 mod parser;
+mod stdlib;
 mod types;
 
 use borrow::BorrowChecker;

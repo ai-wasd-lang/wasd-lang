@@ -23,6 +23,7 @@ Thumbs.db
 *.bc
 
 # Compiled WASD binaries (keep .wasd source files)
+examples/*/main
 examples/*/output
 
 # Test artifacts

@@ -1,4 +1,6 @@
 // Hello World example
+use std.io
+
 fn main() -> i64
     print("Hello, World!")
     0

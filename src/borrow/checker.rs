@@ -41,10 +41,14 @@ impl BorrowChecker {
         let mut errors = Vec::new();
 
         for item in &program.items {
-            if let Item::Function(f) = item {
-                if let Err(mut errs) = self.check_function(f) {
-                    errors.append(&mut errs);
+            match item {
+                Item::Use(_) => {} // No borrow checking needed for imports
+                Item::Function(f) => {
+                    if let Err(mut errs) = self.check_function(f) {
+                        errors.append(&mut errs);
+                    }
                 }
+                Item::Struct(_) | Item::Enum(_) => {} // Types don't need borrow checking
             }
         }
 

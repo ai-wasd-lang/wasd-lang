@@ -32,6 +32,9 @@ impl Lowerer {
 
         for item in &program.items {
             match item {
+                ast::Item::Use(_) => {
+                    // Use statements don't generate IR - they're resolved at type check time
+                }
                 ast::Item::Function(f) => {
                     if let Some(ir_func) = self.lower_function(f) {
                         functions.push(ir_func);

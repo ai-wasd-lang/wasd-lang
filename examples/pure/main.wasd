@@ -1,0 +1,16 @@
+// Pure computation example - no IO required
+// This demonstrates that programs without print don't need to import std.io
+
+fn factorial(n: i64) -> i64
+    let result = 1
+    result * n
+
+fn main() -> i64
+    // Compute 5! = 120 (simplified for demo)
+    let x = 5
+    let f1 = x * 4
+    let f2 = f1 * 3
+    let f3 = f2 * 2
+    let f4 = f3 * 1
+    // Result: 120 as exit code
+    f4
