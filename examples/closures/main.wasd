@@ -1,15 +1,14 @@
-// Closure examples - simplified for current compiler support
+// Closure example - parsing works, full higher-order functions in progress
 
 fn main() -> i64
-    // For now, closures work but calling them isn't fully implemented
-    // This example shows basic arithmetic
+    // Closures use |params| body syntax
+    // Full support for passing closures as arguments is in development
+
+    // Basic computation instead
     let a = 10
-    let b = 20
-    let c = 5
-    let d = 6
+    let b = 5
+    let c = 3
 
-    // Simulating what closures would compute
-    let result = a + b
-    let product = c * d
-
-    result + product
+    // Compute (a + b) * c = (10 + 5) * 3 = 45
+    let sum = a + b
+    sum * c

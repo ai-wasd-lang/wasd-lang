@@ -1,10 +1,17 @@
-// Memory example - simplified for current compiler support
+// Memory allocation example - heap, rc, arc
 
 fn main() -> i64
-    // Memory allocation keywords (heap, rc, arc) require GEP for structs
-    // For now, show basic stack allocation
+    // Heap allocation
+    let heap_val = heap 42
 
-    let stack_value = 10
-    let other_value = 20
+    // Reference-counted allocation
+    let rc_val = rc 100
 
-    stack_value + other_value
+    // Atomic reference-counted allocation
+    let arc_val = arc 200
+
+    // Stack values
+    let stack_val = 50
+
+    // Return sum of values
+    stack_val

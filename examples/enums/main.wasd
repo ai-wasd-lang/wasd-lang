@@ -1,14 +1,16 @@
-// Enum example - simplified for current compiler support
+// Enum example - demonstrates enum construction and pattern matching
+
+enum Option[T]
+    Some(T)
+    None
 
 fn main() -> i64
-    // Enum matching requires GEP support for struct construction
-    // For now, show basic if-else which compiles
+    // Create an Option with a value
+    let x = Option::Some(42)
 
-    let has_value = true
-
-    let result = if has_value
-        42
-    else
-        0
+    // Match on the option - should return 42
+    let result = match x
+        Option::Some(val) => val
+        Option::None => 0
 
     result

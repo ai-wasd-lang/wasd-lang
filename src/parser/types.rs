@@ -37,6 +37,30 @@ impl<'a> Parser<'a> {
             return Ok(Type::Arc(Box::new(inner)));
         }
 
+        // Function type: fn(args) -> RetType
+        if self.check(&Token::Fn) {
+            self.advance();
+            self.expect(&Token::LParen)?;
+            let mut param_types = Vec::new();
+            while !self.check(&Token::RParen) {
+                param_types.push(self.parse_type()?);
+                if !self.check(&Token::RParen) {
+                    self.expect(&Token::Comma)?;
+                }
+            }
+            self.expect(&Token::RParen)?;
+
+            // Return type
+            let return_type = if self.check(&Token::Arrow) {
+                self.advance();
+                self.parse_type()?
+            } else {
+                Type::Named("void".to_string())
+            };
+
+            return Ok(Type::Function(param_types, Box::new(return_type)));
+        }
+
         let name = self.expect_ident()?;
 
         if self.check(&Token::LBracket) {

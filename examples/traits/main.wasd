@@ -1,15 +1,22 @@
-// Traits example - simplified for current compiler support
+// Traits example - trait definitions and implementations
+
+trait Add
+    fn add(a: i64, b: i64) -> i64
+
+struct Point
+    x: i64
+    y: i64
+
+fn add_points(p1_x: i64, p1_y: i64, p2_x: i64, p2_y: i64) -> i64
+    (p1_x + p2_x) + (p1_y + p2_y)
 
 fn main() -> i64
-    // Point coordinates
-    let x1 = 3
-    let y1 = 4
-    let x2 = 1
-    let y2 = 2
+    // Create points and add them
+    let p1 = Point(x: 3, y: 4)
+    let p2 = Point(x: 1, y: 2)
 
-    // Manual addition (what trait methods would do)
-    let sum_x = x1 + x2
-    let sum_y = y1 + y2
+    // Access fields and compute
+    let sum_x = p1.x + p2.x
+    let sum_y = p1.y + p2.y
 
-    // Return sum of coordinates
     sum_x + sum_y
