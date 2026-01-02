@@ -67,6 +67,10 @@ src/
     └── diagnostic.rs    # Error reporting (ariadne)
 ```
 
+## Code Guidelines
+
+- Keep files under **300 LOC** - split larger files for better SRP and maintainability
+
 ## Key Implementation Details
 
 ### Indentation-Based Parsing
