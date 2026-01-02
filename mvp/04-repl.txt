@@ -1,0 +1,41 @@
+REPL - MISSING/INCOMPLETE
+=========================
+
+WORKING:
+[x] Interactive expression evaluation
+[x] Basic commands (:help, :quit, :type)
+[x] Type checking
+[x] Variable persistence
+[x] Simple values (int, float, bool, string)
+
+MISSING:
+[ ] Function definitions
+    - Cannot define fn in REPL session
+    - Would need runtime compilation
+
+[ ] Struct/enum definitions
+    - Cannot define types interactively
+
+[ ] Side effects (IO)
+    - print() and IO not executed
+    - Interpreter only evaluates pure expressions
+
+[ ] Multi-line input
+    - No continuation for incomplete expressions
+
+[ ] Type display improvements
+    - :type command output incomplete
+    - Generic types not shown clearly
+
+[ ] History persistence
+    - No readline/history save between sessions
+
+[ ] Tab completion
+    - No autocomplete for identifiers
+
+[ ] Loading files
+    - :load filename.wasd to import code
+
+[ ] Compiled mode
+    - Currently interpreter-based
+    - Could JIT compile for speed

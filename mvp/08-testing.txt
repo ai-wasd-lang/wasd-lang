@@ -1,0 +1,51 @@
+TESTING FRAMEWORK - NOT IMPLEMENTED
+====================================
+
+ALL OF THESE ARE MISSING:
+
+[ ] Test runner
+    - wasd test command
+    - Discover and run #[test] functions
+
+[ ] Test attributes
+    - #[test] - mark test function
+    - #[ignore] - skip by default
+    - #[should_panic] - expect panic
+    - #[timeout(ms)] - timeout
+
+[ ] Assertions
+    - assert_eq(a, b)
+    - assert_ne(a, b)
+    - assert_lt, assert_gt, etc
+
+[ ] Test output
+    - Pass/fail reporting
+    - Failure messages with values
+
+[ ] Test filtering
+    - wasd test --filter name
+
+[ ] Property testing
+    - #[property] random input generation
+    - Shrinking on failure
+
+[ ] Fixtures
+    - #[fixture] setup functions
+    - Dependency injection to tests
+
+[ ] Mocking
+    - #[mock] trait mocking
+    - Expectation setting
+
+[ ] Coverage
+    - wasd test --coverage
+    - Line/branch coverage
+    - HTML reports
+
+[ ] Snapshot testing
+    - Compare output to saved snapshots
+    - Update snapshots on change
+
+[ ] Doc tests
+    - wasd test --doc
+    - Run code examples in /// comments

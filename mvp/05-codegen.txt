@@ -1,0 +1,44 @@
+CODEGEN - MISSING/INCOMPLETE
+=============================
+
+WORKING:
+[x] Basic LLVM IR generation
+[x] Function declarations
+[x] Integer/float operations
+[x] Struct types
+[x] Stack allocation
+[x] Heap/RC/Arc allocation instructions
+[x] C library FFI calls
+
+MISSING/INCOMPLETE:
+[x] While/for loops codegen
+    - Fully implemented with break/continue support
+    - IR lowering in stmt.rs, LLVM codegen in terminator.rs
+
+[ ] Full enum variant construction
+    - Tagged unions need runtime support
+
+[ ] Full pattern matching codegen
+    - Complex patterns may not lower correctly
+
+[ ] Generic monomorphization at codegen level
+    - Type-level works
+    - LLVM instantiation may be incomplete
+
+[ ] Struct field access codegen
+    - README lists as "in progress"
+
+[ ] Closure capture codegen
+    - Environment capture at runtime
+
+[ ] Async/await runtime
+    - Syntax parsed
+    - No actual async execution
+
+[ ] RAII / Drop codegen
+    - defer statement
+    - Automatic cleanup on scope exit
+
+[ ] Panic / unwinding
+    - Stack unwinding on panic
+    - Or abort mode

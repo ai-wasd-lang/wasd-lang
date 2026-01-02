@@ -1,0 +1,59 @@
+TOOLING - MISSING/INCOMPLETE
+============================
+
+CLI COMMANDS (from features.md):
+
+WORKING:
+[x] wasd build - compile
+[x] wasd run - compile and run
+[x] wasd check - type check only
+[x] wasd emit-ir - output LLVM IR
+[x] wasd fmt - format code
+[x] wasd new - create project
+[x] wasd init - init in current dir
+[x] wasd add - add dependency
+[x] wasd install - install deps
+
+MISSING:
+[ ] wasd test - run tests
+    - Test runner not implemented
+    - #[test] attribute needs runtime
+
+[ ] wasd bench - run benchmarks
+    - Benchmark runner not implemented
+    - #[bench] attribute needs runtime
+
+[ ] wasd lint - run linter
+    - No linter implemented
+    - Unused variable warnings etc
+
+[ ] wasd doc - generate docs
+    - Documentation generator not implemented
+    - /// doc comments parsed but not extracted
+
+[ ] wasd doc --open - generate and open
+
+[ ] wasd publish - publish to registry
+    - GitHub release publishing
+
+[ ] wasd update - update dependencies
+
+[ ] wasd search - search packages
+
+[ ] wasd clean - remove build artifacts
+
+BUILD FEATURES:
+[ ] --release optimization levels
+[ ] LTO (link-time optimization)
+[ ] Cross compilation targets
+[ ] WebAssembly target
+
+DEBUGGING:
+[ ] Debug symbols in output
+[ ] Source maps
+[ ] dbg!() macro
+
+PROFILING:
+[ ] CPU profiling
+[ ] Memory profiling
+[ ] Tracing spans

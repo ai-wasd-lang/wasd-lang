@@ -1,0 +1,53 @@
+LSP (LANGUAGE SERVER) - MISSING/INCOMPLETE
+==========================================
+
+WORKING:
+[x] Server startup and protocol handling
+[x] Document synchronization
+[x] Parse error diagnostics
+[x] Type error diagnostics
+
+MISSING:
+[ ] Hover information
+    - Show type on hover
+    - Show documentation
+    - Currently marked "future"
+
+[ ] Go to definition
+    - Jump to function/type/variable definition
+    - Currently marked "future"
+
+[ ] Find references
+    - Find all usages of symbol
+
+[ ] Code completion
+    - Autocomplete identifiers
+    - Method completion after dot
+    - Import suggestions
+
+[ ] Rename symbol
+    - Refactor rename across files
+
+[ ] Code actions
+    - Quick fixes for errors
+    - Refactoring suggestions
+
+[ ] Signature help
+    - Parameter hints when calling functions
+
+[ ] Document symbols
+    - Outline of file structure
+
+[ ] Workspace symbols
+    - Search across project
+
+[ ] Formatting integration
+    - Format on save via LSP
+
+[ ] Inlay hints
+    - Type annotations inline
+    - Parameter name hints
+
+[ ] Accurate diagnostic positions
+    - Currently defaults to line 0, column 0
+    - Need actual source locations

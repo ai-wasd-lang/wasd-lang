@@ -1,0 +1,71 @@
+LANGUAGE FEATURES - MISSING/INCOMPLETE
+======================================
+
+FROM SPEC - NOT YET IMPLEMENTED:
+
+[ ] Module system / imports
+    - Basic local module loading works
+    - pub/private visibility needs full enforcement
+    - pkg visibility not implemented
+
+[ ] Closures with capture
+    - Syntax parsed
+    - Runtime capture not fully implemented
+
+[ ] Default parameters
+    - fn foo(x: i32 = 5)
+    - Not implemented
+
+[ ] Named arguments
+    - foo(name: "value")
+    - May not be implemented
+
+[ ] Defer statement
+    - defer cleanup()
+    - Not implemented
+
+[ ] Comptime execution
+    - comptime fn factorial(n) evaluated at compile time
+    - Not implemented
+
+[ ] Attributes
+    - #[inline], #[align(64)], etc
+    - Parsing may exist, no effect
+
+[ ] Type aliases
+    - type UserId = u64
+    - May be parsed, not enforced
+
+[ ] Derive macros
+    - #[derive(Debug, Clone)]
+    - Not implemented
+
+[ ] Conditional compilation
+    - #[cfg(target = "linux")]
+    - Not implemented
+
+[ ] Assert with message
+    - assert condition, "message"
+    - Basic assert may work
+
+[ ] Debug assertions
+    - debug_assert only in debug builds
+    - Not implemented
+
+[ ] Union types for errors
+    - fn foo() -> T | Error1 | Error2
+    - Syntax support unclear
+
+[ ] Error context chaining
+    - .context("message") method
+    - Not implemented
+
+FROM README "NOT YET IMPLEMENTED":
+
+[ ] Trait system (partial)
+[ ] Closures
+[ ] Standard library
+[ ] String operations
+[ ] Collections (arrays, maps)
+[ ] Async/await
+[ ] FFI

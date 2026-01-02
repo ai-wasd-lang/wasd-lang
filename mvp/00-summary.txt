@@ -1,0 +1,62 @@
+WASD MVP - MISSING FEATURES SUMMARY
+====================================
+
+WHAT WORKS NOW:
+- Full compilation pipeline (source -> LLVM -> binary)
+- Parser for all language constructs
+- Type inference and checking
+- Borrow checker (ownership, borrows)
+- Basic IR lowering
+- LLVM codegen for primitives
+- Code formatter
+- Package manager (GitHub releases)
+- Basic LSP (diagnostics only)
+- Basic REPL (expressions only)
+
+HIGH PRIORITY GAPS (for MVP):
+
+1. LOOPS CODEGEN
+   - while/for parsed but may not compile
+
+2. STDLIB RUNTIME
+   - All functions are signatures only
+   - Need actual Vec, String, HashMap etc
+
+3. TEST RUNNER
+   - No wasd test command
+   - Cannot run tests
+
+4. TRAIT ENFORCEMENT
+   - Traits parsed but not enforced
+   - Generic bounds not checked
+
+5. CLOSURE CAPTURE
+   - Lambdas exist but capture broken
+
+MEDIUM PRIORITY:
+
+6. LSP completeness (hover, goto def)
+7. Error context/chaining
+8. Defer statement
+9. REPL improvements
+10. Documentation generator
+
+LOW PRIORITY (v2):
+
+- Comptime execution
+- Macros
+- Async runtime
+- WebAssembly target
+- Refinement types
+- Full concurrency primitives
+
+FILES IN THIS DIRECTORY:
+------------------------
+01-type-system.txt   - Type system gaps
+02-stdlib.txt        - Standard library (big!)
+03-lsp.txt           - Language server
+04-repl.txt          - Interactive mode
+05-codegen.txt       - Code generation
+06-language-features.txt - Language constructs
+07-tooling.txt       - CLI tools
+08-testing.txt       - Test framework

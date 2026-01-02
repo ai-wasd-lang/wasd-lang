@@ -1,0 +1,88 @@
+STANDARD LIBRARY - MISSING/INCOMPLETE
+======================================
+
+All stdlib functions are TYPE SIGNATURES ONLY.
+Actual implementations need to be written or linked from C.
+
+CORE (std.core):
+[ ] Option methods (map, and_then, unwrap_or, etc)
+[ ] Result methods (map, map_err, and_then, etc)
+[ ] Ordering comparisons
+
+COLLECTIONS (std.collections):
+[ ] Vec - only signatures, no actual dynamic array
+[ ] HashMap - not implemented
+[ ] HashSet - not implemented
+[ ] BTreeMap - not implemented
+[ ] BTreeSet - not implemented
+[ ] VecDeque - not implemented
+[ ] LinkedList - not implemented
+
+STRINGS (std.string):
+[ ] String concatenation runtime
+[ ] String slicing
+[ ] String searching/splitting
+[ ] Case conversion
+[ ] Trimming
+[ ] Format interpolation runtime
+
+IO (std.io):
+[ ] Read trait implementation
+[ ] Write trait implementation
+[ ] BufRead/BufWriter
+[ ] Seek trait
+
+FILE SYSTEM (std.fs):
+[ ] File handle implementation (relies on C FFI)
+[ ] Path manipulation
+[ ] Directory operations
+[ ] Permissions
+[ ] Temp files
+
+NETWORKING (std.net):
+[ ] TcpStream - not implemented
+[ ] TcpListener - not implemented
+[ ] UdpSocket - not implemented
+[ ] DNS resolution - not implemented
+
+ASYNC (std.async):
+[ ] Future trait
+[ ] Runtime/event loop
+[ ] Channel implementation
+[ ] Select
+[ ] Structured concurrency runtime
+
+PROCESS (std.process):
+[ ] Command builder
+[ ] Process spawning
+[ ] Pipes
+
+TIME (std.time):
+[ ] Instant - not implemented
+[ ] Duration - not implemented
+[ ] DateTime - not implemented
+
+THREADING (std.thread):
+[ ] Thread spawn
+[ ] Join handles
+[ ] Thread-local storage
+
+SYNC (std.sync):
+[ ] Mutex - not implemented
+[ ] RwLock - not implemented
+[ ] Atomics - not implemented
+[ ] Barriers/Condvars - not implemented
+
+RANDOM (std.random):
+[ ] RNG implementation
+[ ] Distributions
+
+MATH (std.math):
+[ ] Trig functions
+[ ] Exponentials
+[ ] Rounding functions
+
+ITERATORS (std.iter):
+[ ] Iterator trait runtime
+[ ] All adapters (map, filter, etc)
+[ ] All consumers (collect, fold, etc)
