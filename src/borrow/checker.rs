@@ -48,7 +48,15 @@ impl BorrowChecker {
                         errors.append(&mut errs);
                     }
                 }
-                Item::Struct(_) | Item::Enum(_) => {} // Types don't need borrow checking
+                Item::Struct(_) | Item::Enum(_) | Item::Trait(_) => {} // Types don't need borrow checking
+                Item::Impl(impl_def) => {
+                    // Check methods in impl blocks
+                    for method in &impl_def.methods {
+                        if let Err(mut errs) = self.check_function(method) {
+                            errors.append(&mut errs);
+                        }
+                    }
+                }
             }
         }
 
@@ -91,9 +99,29 @@ impl BorrowChecker {
                 self.states.insert(name.clone(), ValueState::Owned);
                 Ok(())
             }
+            Stmt::Assign { target, value, .. } => {
+                self.check_expr(target)?;
+                self.check_expr(value)
+            }
             Stmt::Expr(e) => self.check_expr(e),
             Stmt::Return(Some(e), _) => self.check_expr(e),
             Stmt::Return(None, _) => Ok(()),
+            Stmt::While { condition, body, .. } => {
+                self.check_expr(condition)?;
+                for stmt in body {
+                    self.check_stmt(stmt)?;
+                }
+                Ok(())
+            }
+            Stmt::For { var, iterable, body, .. } => {
+                self.check_expr(iterable)?;
+                self.states.insert(var.clone(), ValueState::Owned);
+                for stmt in body {
+                    self.check_stmt(stmt)?;
+                }
+                Ok(())
+            }
+            Stmt::Break(_) | Stmt::Continue(_) => Ok(()),
         }
     }
 
@@ -152,6 +180,28 @@ impl BorrowChecker {
                     self.check_stmt(stmt)?;
                 }
                 Ok(())
+            }
+            Expr::StructConstruct { fields, .. } => {
+                for (_, value) in fields {
+                    self.check_expr(value)?;
+                }
+                Ok(())
+            }
+            Expr::EnumConstruct { value, .. } => {
+                if let Some(v) = value {
+                    self.check_expr(v)?;
+                }
+                Ok(())
+            }
+            Expr::HeapAlloc(inner, _) | Expr::RcAlloc(inner, _) | Expr::ArcAlloc(inner, _) => {
+                self.check_expr(inner)
+            }
+            Expr::Lambda { params, body, .. } => {
+                // Add lambda parameters as owned values
+                for param in params {
+                    self.states.insert(param.name.clone(), ValueState::Owned);
+                }
+                self.check_expr(body)
             }
             _ => Ok(()),
         }

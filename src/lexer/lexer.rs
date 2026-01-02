@@ -89,6 +89,7 @@ impl<'a> Lexer<'a> {
             '.' => Token::Dot,
             '?' => Token::Question,
             '&' => Token::Ampersand,
+            '|' => Token::Pipe,
 
             // Multi-char tokens
             '-' => {
@@ -303,6 +304,9 @@ impl<'a> Lexer<'a> {
             "fn" => Token::Fn,
             "struct" => Token::Struct,
             "enum" => Token::Enum,
+            "trait" => Token::Trait,
+            "impl" => Token::Impl,
+            "self" => Token::SelfKeyword,
             "match" => Token::Match,
             "if" => Token::If,
             "else" => Token::Else,
@@ -310,6 +314,9 @@ impl<'a> Lexer<'a> {
             "for" => Token::For,
             "in" => Token::In,
             "return" => Token::Return,
+            "break" => Token::Break,
+            "continue" => Token::Continue,
+            "loop" => Token::Loop,
             "with" => Token::With,
             "use" => Token::Use,
             "as" => Token::As,

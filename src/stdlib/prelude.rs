@@ -51,5 +51,39 @@ pub fn module() -> StdModule {
     // Debug print and return value (placeholder for now)
     // In real implementation this would be a macro/generic
 
+    // Re-export type constructors from std.types
+    // Some: (T) -> Option[T]
+    functions.insert(
+        "Some".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::Unknown],
+            ret: Box::new(WasdType::Named("Option".to_string())),
+            effects: vec![],
+        },
+    );
+
+    // None is a value, not a function
+    functions.insert("None".to_string(), WasdType::Named("Option".to_string()));
+
+    // Ok: (T) -> Result[T, E]
+    functions.insert(
+        "Ok".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::Unknown],
+            ret: Box::new(WasdType::Named("Result".to_string())),
+            effects: vec![],
+        },
+    );
+
+    // Err: (E) -> Result[T, E]
+    functions.insert(
+        "Err".to_string(),
+        WasdType::Function {
+            params: vec![WasdType::Unknown],
+            ret: Box::new(WasdType::Named("Result".to_string())),
+            effects: vec![],
+        },
+    );
+
     StdModule::with_functions(functions)
 }

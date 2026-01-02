@@ -17,6 +17,8 @@ pub enum Item {
     Function(Function),
     Struct(StructDef),
     Enum(EnumDef),
+    Trait(TraitDef),
+    Impl(ImplDef),
 }
 
 /// A use/import statement.
@@ -84,8 +86,41 @@ pub struct Variant {
     pub span: Span,
 }
 
+/// A trait definition.
+#[derive(Debug, Clone)]
+pub struct TraitDef {
+    pub name: String,
+    pub generics: Vec<String>,
+    pub methods: Vec<TraitMethod>,
+    pub span: Span,
+}
+
+/// A trait method signature (may have default impl).
+#[derive(Debug, Clone)]
+pub struct TraitMethod {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Option<Type>,
+    pub body: Option<Vec<Stmt>>, // None = required, Some = default implementation
+    pub span: Span,
+}
+
+/// An impl block.
+#[derive(Debug, Clone)]
+pub struct ImplDef {
+    /// The trait being implemented (None for inherent impls)
+    pub trait_name: Option<String>,
+    /// Generic parameters on the trait (e.g., Add[Point, Point])
+    pub trait_generics: Vec<Type>,
+    /// The type receiving the impl
+    pub target_type: Type,
+    /// Methods in the impl
+    pub methods: Vec<Function>,
+    pub span: Span,
+}
+
 /// Type representations.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     Named(String),
     Generic(String, Vec<Type>),
@@ -107,8 +142,26 @@ pub enum Stmt {
         value: Expr,
         span: Span,
     },
+    Assign {
+        target: Expr,
+        value: Expr,
+        span: Span,
+    },
     Expr(Expr),
     Return(Option<Expr>, Span),
+    While {
+        condition: Expr,
+        body: Vec<Stmt>,
+        span: Span,
+    },
+    For {
+        var: String,
+        iterable: Expr,
+        body: Vec<Stmt>,
+        span: Span,
+    },
+    Break(Span),
+    Continue(Span),
 }
 
 /// Expressions in WASD.
@@ -123,9 +176,32 @@ pub enum Expr {
     Unary(UnaryOp, Box<Expr>, Span),
     Call(Box<Expr>, Vec<Expr>, Span),
     FieldAccess(Box<Expr>, String, Span),
+    StructConstruct {
+        name: String,
+        fields: Vec<(String, Expr)>,
+        span: Span,
+    },
+    EnumConstruct {
+        enum_name: Option<String>,
+        variant: String,
+        value: Option<Box<Expr>>,
+        span: Span,
+    },
     If(Box<Expr>, Vec<Stmt>, Option<Vec<Stmt>>, Span),
     Match(Box<Expr>, Vec<MatchArm>, Span),
     Block(Vec<Stmt>, Span),
+    /// Heap allocation: heap expr
+    HeapAlloc(Box<Expr>, Span),
+    /// Reference-counted allocation: rc expr
+    RcAlloc(Box<Expr>, Span),
+    /// Atomically reference-counted allocation: arc expr
+    ArcAlloc(Box<Expr>, Span),
+    /// Closure/lambda: |params| expr or |params| { body }
+    Lambda {
+        params: Vec<Param>,
+        body: Box<Expr>,
+        span: Span,
+    },
 }
 
 /// Binary operators.

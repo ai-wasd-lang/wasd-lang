@@ -13,13 +13,17 @@ use inkwell::OptimizationLevel;
 use std::collections::HashMap;
 use std::path::Path;
 
+use inkwell::basic_block::BasicBlock;
+
 /// LLVM code generator for WASD.
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
     module: Module<'ctx>,
     builder: Builder<'ctx>,
     variables: HashMap<String, PointerValue<'ctx>>,
+    variable_types: HashMap<String, BasicTypeEnum<'ctx>>,
     functions: HashMap<String, FunctionValue<'ctx>>,
+    blocks: HashMap<String, BasicBlock<'ctx>>,
     string_counter: usize,
 }
 
@@ -34,7 +38,9 @@ impl<'ctx> CodeGen<'ctx> {
             module,
             builder,
             variables: HashMap::new(),
+            variable_types: HashMap::new(),
             functions: HashMap::new(),
+            blocks: HashMap::new(),
             string_counter: 0,
         };
 
@@ -152,12 +158,22 @@ impl<'ctx> CodeGen<'ctx> {
             .ok_or_else(|| format!("Function not found: {}", func.name))?;
 
         self.variables.clear();
+        self.variable_types.clear();
+        self.blocks.clear();
 
-        // Create entry block
-        let entry = self.context.append_basic_block(fn_value, "entry");
-        self.builder.position_at_end(entry);
+        // First pass: create all basic blocks
+        for ir_block in &func.blocks {
+            let bb = self.context.append_basic_block(fn_value, &ir_block.label);
+            self.blocks.insert(ir_block.label.clone(), bb);
+        }
 
-        // Allocate and store parameters
+        // Position at first block (entry)
+        if let Some(first_block) = func.blocks.first() {
+            let entry = self.blocks.get(&first_block.label).unwrap();
+            self.builder.position_at_end(*entry);
+        }
+
+        // Allocate and store parameters (in entry block)
         for (i, (name, ty)) in func.params.iter().enumerate() {
             let llvm_ty = self.get_llvm_type(ty);
             let alloca = self
@@ -169,11 +185,12 @@ impl<'ctx> CodeGen<'ctx> {
                 .build_store(alloca, param)
                 .map_err(|e| format!("Failed to build store: {}", e))?;
             self.variables.insert(name.clone(), alloca);
+            self.variable_types.insert(name.clone(), llvm_ty);
         }
 
-        // Compile blocks
-        for block in &func.blocks {
-            self.compile_block(block, fn_value)?;
+        // Second pass: compile each block
+        for ir_block in &func.blocks {
+            self.compile_block(ir_block, fn_value)?;
         }
 
         Ok(())
@@ -184,6 +201,11 @@ impl<'ctx> CodeGen<'ctx> {
         block: &IrBlock,
         _fn_value: FunctionValue<'ctx>,
     ) -> Result<(), String> {
+        // Position builder at this block
+        let bb = self.blocks.get(&block.label)
+            .ok_or_else(|| format!("Block not found: {}", block.label))?;
+        self.builder.position_at_end(*bb);
+
         for inst in &block.instructions {
             self.compile_instruction(inst)?;
         }
@@ -202,6 +224,7 @@ impl<'ctx> CodeGen<'ctx> {
                     .build_alloca(llvm_ty, dest)
                     .map_err(|e| format!("Failed to build alloca: {}", e))?;
                 self.variables.insert(dest.clone(), alloca);
+                self.variable_types.insert(dest.clone(), llvm_ty);
             }
             IrInst::Store { value, ptr } => {
                 let llvm_value = self.get_llvm_value(value)?;
@@ -244,7 +267,8 @@ impl<'ctx> CodeGen<'ctx> {
                 let rhs = self.get_llvm_value(right)?;
 
                 let result = self.build_binop(*op, lhs, rhs, dest)?;
-                let ty = self.context.i64_type();
+                // Use the result type for the alloca
+                let ty = result.get_type();
                 let alloca = self
                     .builder
                     .build_alloca(ty, dest)
@@ -253,10 +277,17 @@ impl<'ctx> CodeGen<'ctx> {
                     .build_store(alloca, result)
                     .map_err(|e| format!("Failed to build store: {}", e))?;
                 self.variables.insert(dest.clone(), alloca);
+                self.variable_types.insert(dest.clone(), ty);
             }
             IrInst::Call { dest, func, args } => {
-                // Map print to puts
-                let actual_func = if func == "print" { "puts" } else { func };
+                // Map stdlib functions to C library functions
+                // println adds a newline, so it uses puts
+                // print does not add a newline, so it uses printf with %s format
+                let actual_func = match func.as_str() {
+                    "println" => "puts",
+                    "print" => "printf",
+                    other => other,
+                };
 
                 let fn_value = *self
                     .functions
@@ -290,6 +321,184 @@ impl<'ctx> CodeGen<'ctx> {
             IrInst::GetElementPtr { .. } => {
                 // TODO: Implement GEP
             }
+            IrInst::HeapAlloc { dest, ty, value } => {
+                // Get or declare malloc
+                let malloc_fn = self.get_or_declare_malloc()?;
+                let llvm_ty = self.get_llvm_type(ty);
+
+                // Calculate size of type
+                let size = llvm_ty.size_of()
+                    .ok_or_else(|| "Cannot get size of type".to_string())?;
+
+                // Call malloc
+                let ptr = self.builder
+                    .build_call(malloc_fn, &[size.into()], "heap_alloc")
+                    .map_err(|e| format!("Failed to call malloc: {}", e))?
+                    .try_as_basic_value()
+                    .left()
+                    .ok_or_else(|| "malloc returned void".to_string())?;
+
+                // Store initial value if provided
+                if let Some(val) = value {
+                    let llvm_val = self.get_llvm_value(val)?;
+                    self.builder
+                        .build_store(ptr.into_pointer_value(), llvm_val)
+                        .map_err(|e| format!("Failed to store heap value: {}", e))?;
+                }
+
+                // Store pointer in alloca
+                let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+                let alloca = self.builder
+                    .build_alloca(ptr_ty, dest)
+                    .map_err(|e| format!("Failed to build alloca: {}", e))?;
+                self.builder
+                    .build_store(alloca, ptr)
+                    .map_err(|e| format!("Failed to store: {}", e))?;
+                self.variables.insert(dest.clone(), alloca);
+            }
+            IrInst::RcAlloc { dest, ty, value } => {
+                // RC allocation: allocate (refcount, value) struct
+                // For now, same as heap alloc but with extra space for refcount
+                let malloc_fn = self.get_or_declare_malloc()?;
+                let llvm_ty = self.get_llvm_type(ty);
+
+                // Size = sizeof(i64) for refcount + sizeof(value)
+                let refcount_size = self.context.i64_type().size_of();
+                let value_size = llvm_ty.size_of()
+                    .ok_or_else(|| "Cannot get size of type".to_string())?;
+                let total_size = self.builder
+                    .build_int_add(refcount_size, value_size, "total_size")
+                    .map_err(|e| format!("Failed to add sizes: {}", e))?;
+
+                // Call malloc
+                let ptr = self.builder
+                    .build_call(malloc_fn, &[total_size.into()], "rc_alloc")
+                    .map_err(|e| format!("Failed to call malloc: {}", e))?
+                    .try_as_basic_value()
+                    .left()
+                    .ok_or_else(|| "malloc returned void".to_string())?;
+
+                // Initialize refcount to 1
+                let one = self.context.i64_type().const_int(1, false);
+                self.builder
+                    .build_store(ptr.into_pointer_value(), one)
+                    .map_err(|e| format!("Failed to store refcount: {}", e))?;
+
+                // Store initial value if provided (after refcount)
+                if let Some(val) = value {
+                    let llvm_val = self.get_llvm_value(val)?;
+                    let value_ptr = unsafe {
+                        self.builder
+                            .build_gep(
+                                self.context.i64_type(),
+                                ptr.into_pointer_value(),
+                                &[self.context.i64_type().const_int(1, false)],
+                                "value_ptr"
+                            )
+                            .map_err(|e| format!("Failed to compute value ptr: {}", e))?
+                    };
+                    self.builder
+                        .build_store(value_ptr, llvm_val)
+                        .map_err(|e| format!("Failed to store rc value: {}", e))?;
+                }
+
+                // Store pointer
+                let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+                let alloca = self.builder
+                    .build_alloca(ptr_ty, dest)
+                    .map_err(|e| format!("Failed to build alloca: {}", e))?;
+                self.builder
+                    .build_store(alloca, ptr)
+                    .map_err(|e| format!("Failed to store: {}", e))?;
+                self.variables.insert(dest.clone(), alloca);
+            }
+            IrInst::ArcAlloc { dest, ty, value } => {
+                // ARC is same as RC for now (atomic operations would differ)
+                // TODO: Use atomic operations for refcount
+                let malloc_fn = self.get_or_declare_malloc()?;
+                let llvm_ty = self.get_llvm_type(ty);
+
+                let refcount_size = self.context.i64_type().size_of();
+                let value_size = llvm_ty.size_of()
+                    .ok_or_else(|| "Cannot get size of type".to_string())?;
+                let total_size = self.builder
+                    .build_int_add(refcount_size, value_size, "total_size")
+                    .map_err(|e| format!("Failed to add sizes: {}", e))?;
+
+                let ptr = self.builder
+                    .build_call(malloc_fn, &[total_size.into()], "arc_alloc")
+                    .map_err(|e| format!("Failed to call malloc: {}", e))?
+                    .try_as_basic_value()
+                    .left()
+                    .ok_or_else(|| "malloc returned void".to_string())?;
+
+                let one = self.context.i64_type().const_int(1, false);
+                self.builder
+                    .build_store(ptr.into_pointer_value(), one)
+                    .map_err(|e| format!("Failed to store refcount: {}", e))?;
+
+                if let Some(val) = value {
+                    let llvm_val = self.get_llvm_value(val)?;
+                    let value_ptr = unsafe {
+                        self.builder
+                            .build_gep(
+                                self.context.i64_type(),
+                                ptr.into_pointer_value(),
+                                &[self.context.i64_type().const_int(1, false)],
+                                "value_ptr"
+                            )
+                            .map_err(|e| format!("Failed to compute value ptr: {}", e))?
+                    };
+                    self.builder
+                        .build_store(value_ptr, llvm_val)
+                        .map_err(|e| format!("Failed to store arc value: {}", e))?;
+                }
+
+                let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+                let alloca = self.builder
+                    .build_alloca(ptr_ty, dest)
+                    .map_err(|e| format!("Failed to build alloca: {}", e))?;
+                self.builder
+                    .build_store(alloca, ptr)
+                    .map_err(|e| format!("Failed to store: {}", e))?;
+                self.variables.insert(dest.clone(), alloca);
+            }
+            IrInst::RcIncRef { ptr } => {
+                // Increment refcount at ptr
+                let ptr_val = *self.variables.get(ptr)
+                    .ok_or_else(|| format!("Variable not found: {}", ptr))?;
+                let actual_ptr = self.builder
+                    .build_load(self.context.ptr_type(inkwell::AddressSpace::default()), ptr_val, "rc_ptr")
+                    .map_err(|e| format!("Failed to load ptr: {}", e))?;
+                let count = self.builder
+                    .build_load(self.context.i64_type(), actual_ptr.into_pointer_value(), "count")
+                    .map_err(|e| format!("Failed to load count: {}", e))?;
+                let new_count = self.builder
+                    .build_int_add(count.into_int_value(), self.context.i64_type().const_int(1, false), "new_count")
+                    .map_err(|e| format!("Failed to increment: {}", e))?;
+                self.builder
+                    .build_store(actual_ptr.into_pointer_value(), new_count)
+                    .map_err(|e| format!("Failed to store count: {}", e))?;
+            }
+            IrInst::RcDecRef { ptr } => {
+                // Decrement refcount, free if zero
+                // For now, just decrement (proper implementation would check and free)
+                let ptr_val = *self.variables.get(ptr)
+                    .ok_or_else(|| format!("Variable not found: {}", ptr))?;
+                let actual_ptr = self.builder
+                    .build_load(self.context.ptr_type(inkwell::AddressSpace::default()), ptr_val, "rc_ptr")
+                    .map_err(|e| format!("Failed to load ptr: {}", e))?;
+                let count = self.builder
+                    .build_load(self.context.i64_type(), actual_ptr.into_pointer_value(), "count")
+                    .map_err(|e| format!("Failed to load count: {}", e))?;
+                let new_count = self.builder
+                    .build_int_sub(count.into_int_value(), self.context.i64_type().const_int(1, false), "new_count")
+                    .map_err(|e| format!("Failed to decrement: {}", e))?;
+                self.builder
+                    .build_store(actual_ptr.into_pointer_value(), new_count)
+                    .map_err(|e| format!("Failed to store count: {}", e))?;
+                // TODO: Add conditional free when count reaches 0
+            }
         }
 
         Ok(())
@@ -313,8 +522,25 @@ impl<'ctx> CodeGen<'ctx> {
                     .build_unreachable()
                     .map_err(|e| format!("Failed to build unreachable: {}", e))?;
             }
-            IrTerminator::Branch(_) | IrTerminator::CondBranch { .. } => {
-                // TODO: Implement branches
+            IrTerminator::Branch(target) => {
+                let target_bb = self.blocks.get(target)
+                    .ok_or_else(|| format!("Branch target not found: {}", target))?;
+                self.builder
+                    .build_unconditional_branch(*target_bb)
+                    .map_err(|e| format!("Failed to build branch: {}", e))?;
+            }
+            IrTerminator::CondBranch { cond, true_block, false_block } => {
+                let cond_value = self.get_llvm_value(cond)?;
+                let cond_int = cond_value.into_int_value();
+
+                let true_bb = self.blocks.get(true_block)
+                    .ok_or_else(|| format!("True branch target not found: {}", true_block))?;
+                let false_bb = self.blocks.get(false_block)
+                    .ok_or_else(|| format!("False branch target not found: {}", false_block))?;
+
+                self.builder
+                    .build_conditional_branch(cond_int, *true_bb, *false_bb)
+                    .map_err(|e| format!("Failed to build conditional branch: {}", e))?;
             }
         }
 
@@ -328,6 +554,11 @@ impl<'ctx> CodeGen<'ctx> {
         rhs: BasicValueEnum<'ctx>,
         name: &str,
     ) -> Result<BasicValueEnum<'ctx>, String> {
+        // Check if we're dealing with floats
+        if lhs.is_float_value() && rhs.is_float_value() {
+            return self.build_float_binop(op, lhs.into_float_value(), rhs.into_float_value(), name);
+        }
+
         let lhs_int = lhs.into_int_value();
         let rhs_int = rhs.into_int_value();
 
@@ -375,6 +606,58 @@ impl<'ctx> CodeGen<'ctx> {
             .map_err(|e| format!("Failed to build binary op: {}", e))
     }
 
+    fn build_float_binop(
+        &self,
+        op: IrBinOp,
+        lhs: inkwell::values::FloatValue<'ctx>,
+        rhs: inkwell::values::FloatValue<'ctx>,
+        name: &str,
+    ) -> Result<BasicValueEnum<'ctx>, String> {
+        let result: Result<BasicValueEnum<'ctx>, String> = match op {
+            IrBinOp::Add => self.builder.build_float_add(lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float add: {}", e)),
+            IrBinOp::Sub => self.builder.build_float_sub(lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float sub: {}", e)),
+            IrBinOp::Mul => self.builder.build_float_mul(lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float mul: {}", e)),
+            IrBinOp::Div => self.builder.build_float_div(lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float div: {}", e)),
+            IrBinOp::Rem => self.builder.build_float_rem(lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float rem: {}", e)),
+            IrBinOp::Eq => self.builder
+                .build_float_compare(inkwell::FloatPredicate::OEQ, lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float compare: {}", e)),
+            IrBinOp::Ne => self.builder
+                .build_float_compare(inkwell::FloatPredicate::ONE, lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float compare: {}", e)),
+            IrBinOp::Lt => self.builder
+                .build_float_compare(inkwell::FloatPredicate::OLT, lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float compare: {}", e)),
+            IrBinOp::Le => self.builder
+                .build_float_compare(inkwell::FloatPredicate::OLE, lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float compare: {}", e)),
+            IrBinOp::Gt => self.builder
+                .build_float_compare(inkwell::FloatPredicate::OGT, lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float compare: {}", e)),
+            IrBinOp::Ge => self.builder
+                .build_float_compare(inkwell::FloatPredicate::OGE, lhs, rhs, name)
+                .map(|v| v.into())
+                .map_err(|e| format!("Failed to build float compare: {}", e)),
+            _ => Err(format!("Unsupported float operation: {:?}", op)),
+        };
+        result
+    }
+
     fn get_llvm_value(&mut self, value: &IrValue) -> Result<BasicValueEnum<'ctx>, String> {
         match value {
             IrValue::ConstInt(n, ty) => {
@@ -398,7 +681,11 @@ impl<'ctx> CodeGen<'ctx> {
                     .variables
                     .get(name)
                     .ok_or_else(|| format!("Variable not found: {}", name))?;
-                let ty = self.context.i64_type();
+                // Use tracked type if available, otherwise default to i64
+                let ty = self.variable_types
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_else(|| self.context.i64_type().into());
                 self.builder
                     .build_load(ty, *ptr, name)
                     .map_err(|e| format!("Failed to build load: {}", e))
@@ -435,6 +722,36 @@ impl<'ctx> CodeGen<'ctx> {
             }
             IrType::Void => self.context.i64_type().into(), // Placeholder
         }
+    }
+
+    /// Get or declare the malloc function
+    fn get_or_declare_malloc(&mut self) -> Result<FunctionValue<'ctx>, String> {
+        if let Some(func) = self.functions.get("malloc") {
+            return Ok(*func);
+        }
+
+        // Declare: void* malloc(size_t size)
+        let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+        let size_ty = self.context.i64_type();
+        let malloc_type = ptr_ty.fn_type(&[size_ty.into()], false);
+        let malloc_fn = self.module.add_function("malloc", malloc_type, None);
+        self.functions.insert("malloc".to_string(), malloc_fn);
+        Ok(malloc_fn)
+    }
+
+    /// Get or declare the free function
+    #[allow(dead_code)]
+    fn get_or_declare_free(&mut self) -> Result<FunctionValue<'ctx>, String> {
+        if let Some(func) = self.functions.get("free") {
+            return Ok(*func);
+        }
+
+        // Declare: void free(void* ptr)
+        let ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+        let free_type = self.context.void_type().fn_type(&[ptr_ty.into()], false);
+        let free_fn = self.module.add_function("free", free_type, None);
+        self.functions.insert("free".to_string(), free_fn);
+        Ok(free_fn)
     }
 }
 
@@ -570,5 +887,26 @@ fn main() -> i64
         assert!(ir.contains("define i64 @foo()"));
         assert!(ir.contains("define i64 @bar()"));
         assert!(ir.contains("define i64 @main()"));
+    }
+
+    #[test]
+    fn test_float_function_codegen() {
+        let source = r#"fn add_floats(a: f64, b: f64) -> f64
+    a + b
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("define double @add_floats(double"));
+        assert!(ir.contains("fadd double"));
+    }
+
+    #[test]
+    fn test_float_literal_codegen() {
+        let source = r#"fn get_pi() -> f64
+    3.14159
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("define double @get_pi()"));
+        // Float constant should be present
+        assert!(ir.contains("3.14159"));
     }
 }

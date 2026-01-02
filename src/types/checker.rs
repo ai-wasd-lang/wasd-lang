@@ -4,7 +4,7 @@
 
 use super::types::WasdType;
 use crate::parser::{
-    BinOp, EnumDef, Expr, Function, Item, Program, Stmt, StructDef, Type, UnaryOp, UseStmt,
+    BinOp, EnumDef, Expr, Function, ImplDef, Item, Program, Stmt, StructDef, TraitDef, Type, UnaryOp, UseStmt,
 };
 use crate::stdlib;
 use std::collections::HashMap;
@@ -126,7 +126,23 @@ impl TypeChecker {
             Item::Function(f) => self.check_function(f),
             Item::Struct(s) => self.register_struct(s),
             Item::Enum(e) => self.register_enum(e),
+            Item::Trait(t) => self.register_trait(t),
+            Item::Impl(impl_def) => self.check_impl(impl_def),
         }
+    }
+
+    fn register_trait(&mut self, _trait_def: &TraitDef) -> Result<(), String> {
+        // TODO: Register trait in type environment
+        // For now, just accept it
+        Ok(())
+    }
+
+    fn check_impl(&mut self, impl_def: &ImplDef) -> Result<(), String> {
+        // Check each method in the impl
+        for method in &impl_def.methods {
+            self.check_function(method)?;
+        }
+        Ok(())
     }
 
     fn check_function(&mut self, func: &Function) -> Result<(), String> {
@@ -173,9 +189,42 @@ impl TypeChecker {
                 self.env.insert(name.clone(), value_ty.clone());
                 Ok(value_ty)
             }
+            Stmt::Assign { target, value, .. } => {
+                let target_ty = self.infer_expr(target)?;
+                let value_ty = self.infer_expr(value)?;
+                self.unify(&target_ty, &value_ty)?;
+                Ok(WasdType::Unit)
+            }
             Stmt::Expr(e) => self.infer_expr(e),
             Stmt::Return(Some(e), _) => self.infer_expr(e),
             Stmt::Return(None, _) => Ok(WasdType::Unit),
+            Stmt::While { condition, body, .. } => {
+                let cond_ty = self.infer_expr(condition)?;
+                self.unify(&WasdType::Bool, &cond_ty)?;
+                for stmt in body {
+                    self.check_stmt(stmt)?;
+                }
+                Ok(WasdType::Unit)
+            }
+            Stmt::For { var, iterable, body, .. } => {
+                // For now, we'll assume the iterable is a range or something similar
+                // In the future, we'll need to check for an iterator trait
+                let _iter_ty = self.infer_expr(iterable)?;
+                // Temporarily add the loop variable to the environment
+                let saved = self.env.get(var).cloned();
+                self.env.insert(var.clone(), WasdType::I64); // TODO: infer from iterable
+                for stmt in body {
+                    self.check_stmt(stmt)?;
+                }
+                // Restore previous value if there was one
+                if let Some(prev) = saved {
+                    self.env.insert(var.clone(), prev);
+                } else {
+                    self.env.remove(var);
+                }
+                Ok(WasdType::Unit)
+            }
+            Stmt::Break(_) | Stmt::Continue(_) => Ok(WasdType::Unit),
         }
     }
 
@@ -231,7 +280,81 @@ impl TypeChecker {
                 Ok(then_ty)
             }
             Expr::Block(stmts, _) => self.check_block(stmts),
-            _ => Ok(WasdType::Unknown),
+            Expr::FieldAccess(base, _field, _) => {
+                let _base_ty = self.infer_expr(base)?;
+                // TODO: Look up field type in struct definition
+                // For now, return Unknown
+                Ok(WasdType::Unknown)
+            }
+            Expr::StructConstruct { name, fields, .. } => {
+                // Check each field expression
+                for (_, value) in fields {
+                    self.infer_expr(value)?;
+                }
+                // Return the struct type
+                Ok(WasdType::Named(name.clone()))
+            }
+            Expr::EnumConstruct { enum_name, value, .. } => {
+                // Check the value expression if present
+                if let Some(v) = value {
+                    self.infer_expr(v)?;
+                }
+                // Return the enum type
+                if let Some(name) = enum_name {
+                    Ok(WasdType::Named(name.clone()))
+                } else {
+                    Ok(WasdType::Unknown)
+                }
+            }
+            Expr::Match(value, arms, _) => {
+                self.infer_expr(value)?;
+                // For now, assume match returns Unknown
+                // TODO: Check arm types are compatible
+                for arm in arms {
+                    self.infer_expr(&arm.body)?;
+                }
+                Ok(WasdType::Unknown)
+            }
+            Expr::HeapAlloc(inner, _) => {
+                let inner_ty = self.infer_expr(inner)?;
+                Ok(WasdType::Heap(Box::new(inner_ty)))
+            }
+            Expr::RcAlloc(inner, _) => {
+                let inner_ty = self.infer_expr(inner)?;
+                Ok(WasdType::Rc(Box::new(inner_ty)))
+            }
+            Expr::ArcAlloc(inner, _) => {
+                let inner_ty = self.infer_expr(inner)?;
+                Ok(WasdType::Arc(Box::new(inner_ty)))
+            }
+            Expr::Lambda { params, body, .. } => {
+                // Create a new scope for the closure
+                let old_env = self.env.clone();
+
+                // Add parameters to the environment
+                for param in params {
+                    let ty = self.ast_type_to_wasd_type(&param.ty)?;
+                    self.env.insert(param.name.clone(), ty);
+                }
+
+                // Infer the body type
+                let ret_ty = self.infer_expr(body)?;
+
+                // Restore the environment
+                self.env = old_env;
+
+                // Build the function type
+                let mut param_types = Vec::new();
+                for p in params {
+                    param_types.push(self.ast_type_to_wasd_type(&p.ty)?);
+                }
+
+                Ok(WasdType::Function {
+                    params: param_types,
+                    ret: Box::new(ret_ty),
+                    effects: vec![],
+                })
+            }
         }
     }
 
@@ -530,6 +653,84 @@ fn main()
 
 fn main() -> i64
     helper(41)
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_use_stdlib_io() {
+        let source = r#"use std.io
+
+fn main()
+    print("hello")
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_use_stdlib_prelude() {
+        let source = r#"use std.prelude.*
+
+fn main()
+    println("hello")
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_use_specific_function() {
+        let source = r#"use std.io.println
+
+fn main()
+    println("world")
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_use_unknown_module() {
+        let source = r#"use unknown.module
+
+fn main()
+    something()
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("Unknown import path"));
+    }
+
+    #[test]
+    fn test_use_stdlib_types() {
+        // Note: Some(42) would need proper generic handling
+        // For now, just test that the import works
+        let source = r#"use std.types
+
+fn main()
+    let x = None
+"#;
+        let result = check(source);
+        if let Err(e) = &result {
+            eprintln!("Errors: {:?}", e);
+        }
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_use_stdlib_collections() {
+        let source = r#"use std.collections
+
+fn main()
+    let v = Vec_new()
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_use_stdlib_string() {
+        let source = r#"use std.string
+
+fn main()
+    let s = String_new()
 "#;
         assert!(check(source).is_ok());
     }

@@ -20,6 +20,8 @@ pub enum WasdType {
     F64,
     /// Boolean type
     Bool,
+    /// Character type (UTF-8)
+    Char,
     /// String type
     String,
     /// Unit type (no value)
@@ -64,6 +66,7 @@ impl WasdType {
                 | WasdType::F32
                 | WasdType::F64
                 | WasdType::Bool
+                | WasdType::Char
                 | WasdType::String
                 | WasdType::Unit
         )
@@ -84,6 +87,7 @@ impl WasdType {
                 | WasdType::F32
                 | WasdType::F64
                 | WasdType::Bool
+                | WasdType::Char
         )
     }
 }

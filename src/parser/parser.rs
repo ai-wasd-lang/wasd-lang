@@ -46,6 +46,8 @@ impl<'a> Parser<'a> {
             Token::Fn => self.parse_function().map(Item::Function),
             Token::Struct => self.parse_struct().map(Item::Struct),
             Token::Enum => self.parse_enum().map(Item::Enum),
+            Token::Trait => self.parse_trait().map(Item::Trait),
+            Token::Impl => self.parse_impl().map(Item::Impl),
             _ => Err(format!("Expected item, found {:?}", self.peek())),
         }
     }
@@ -216,17 +218,194 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Parse a trait definition.
+    /// trait Name[T]
+    ///     fn method(self, arg: T) -> T
+    fn parse_trait(&mut self) -> Result<TraitDef, String> {
+        let span = self.current_span();
+        self.expect(&Token::Trait)?;
+
+        let name = self.expect_ident()?;
+        let generics = self.parse_generics()?;
+
+        self.skip_newlines();
+
+        let mut methods = Vec::new();
+
+        // Expect indented block of methods
+        if !self.check(&Token::Indent) {
+            return Ok(TraitDef {
+                name,
+                generics,
+                methods,
+                span,
+            });
+        }
+        self.advance(); // consume Indent
+
+        while !self.check(&Token::Dedent) && !self.is_at_end() {
+            self.skip_newlines();
+            if self.check(&Token::Dedent) {
+                break;
+            }
+            methods.push(self.parse_trait_method()?);
+            self.skip_newlines();
+        }
+
+        if self.check(&Token::Dedent) {
+            self.advance();
+        }
+
+        Ok(TraitDef {
+            name,
+            generics,
+            methods,
+            span,
+        })
+    }
+
+    /// Parse a trait method signature.
+    fn parse_trait_method(&mut self) -> Result<TraitMethod, String> {
+        let span = self.current_span();
+        self.expect(&Token::Fn)?;
+
+        let name = self.expect_ident()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+
+        // Parse optional return type
+        let return_type = if self.check(&Token::Arrow) {
+            self.advance();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        // Check for default implementation (indented body)
+        self.skip_newlines();
+        let body = if self.check(&Token::Indent) {
+            self.advance();
+            let mut stmts = Vec::new();
+            while !self.check(&Token::Dedent) && !self.is_at_end() {
+                self.skip_newlines();
+                if self.check(&Token::Dedent) {
+                    break;
+                }
+                stmts.push(self.parse_stmt()?);
+                self.skip_newlines();
+            }
+            if self.check(&Token::Dedent) {
+                self.advance();
+            }
+            Some(stmts)
+        } else {
+            None
+        };
+
+        Ok(TraitMethod {
+            name,
+            params,
+            return_type,
+            body,
+            span,
+        })
+    }
+
+    /// Parse an impl block.
+    /// impl TraitName[Args] for Type
+    ///     fn method(self) -> ...
+    fn parse_impl(&mut self) -> Result<ImplDef, String> {
+        let span = self.current_span();
+        self.expect(&Token::Impl)?;
+
+        // Parse trait name (may have generics)
+        let trait_or_type = self.expect_ident()?;
+        let trait_generics = if self.check(&Token::LBracket) {
+            self.advance();
+            let mut args = Vec::new();
+            while !self.check(&Token::RBracket) {
+                args.push(self.parse_type()?);
+                if !self.check(&Token::RBracket) {
+                    self.expect(&Token::Comma)?;
+                }
+            }
+            self.expect(&Token::RBracket)?;
+            args
+        } else {
+            Vec::new()
+        };
+
+        // Check if this is "impl Trait for Type" or "impl Type"
+        let (trait_name, target_type) = if self.check(&Token::For) {
+            self.advance();
+            let target = self.parse_type()?;
+            (Some(trait_or_type), target)
+        } else {
+            // Inherent impl: impl Type
+            (None, Type::Named(trait_or_type))
+        };
+
+        self.skip_newlines();
+
+        let mut methods = Vec::new();
+
+        // Parse method implementations
+        if !self.check(&Token::Indent) {
+            return Ok(ImplDef {
+                trait_name,
+                trait_generics,
+                target_type,
+                methods,
+                span,
+            });
+        }
+        self.advance();
+
+        while !self.check(&Token::Dedent) && !self.is_at_end() {
+            self.skip_newlines();
+            if self.check(&Token::Dedent) {
+                break;
+            }
+            methods.push(self.parse_function()?);
+            self.skip_newlines();
+        }
+
+        if self.check(&Token::Dedent) {
+            self.advance();
+        }
+
+        Ok(ImplDef {
+            trait_name,
+            trait_generics,
+            target_type,
+            methods,
+            span,
+        })
+    }
+
     fn parse_params(&mut self) -> Result<Vec<Param>, String> {
         let mut params = Vec::new();
         while !self.check(&Token::RParen) {
-            let name = self.expect_ident()?;
-            self.expect(&Token::Colon)?;
-            let ty = self.parse_type()?;
-            params.push(Param {
-                name,
-                ty,
-                span: self.current_span(),
-            });
+            // Handle `self` as a special parameter
+            if self.check(&Token::SelfKeyword) {
+                let span = self.current_span();
+                self.advance();
+                params.push(Param {
+                    name: "self".to_string(),
+                    ty: Type::Named("Self".to_string()), // Placeholder type
+                    span,
+                });
+            } else {
+                let name = self.expect_ident()?;
+                self.expect(&Token::Colon)?;
+                let ty = self.parse_type()?;
+                params.push(Param {
+                    name,
+                    ty,
+                    span: self.current_span(),
+                });
+            }
             if !self.check(&Token::RParen) {
                 self.expect(&Token::Comma)?;
             }
@@ -333,9 +512,67 @@ impl<'a> Parser<'a> {
             self.parse_let()
         } else if self.check(&Token::Return) {
             self.parse_return()
+        } else if self.check(&Token::While) {
+            self.parse_while()
+        } else if self.check(&Token::For) {
+            self.parse_for()
+        } else if self.check(&Token::Break) {
+            let span = self.current_span();
+            self.advance();
+            Ok(Stmt::Break(span))
+        } else if self.check(&Token::Continue) {
+            let span = self.current_span();
+            self.advance();
+            Ok(Stmt::Continue(span))
         } else {
-            Ok(Stmt::Expr(self.parse_expr()?))
+            // Could be an expression or an assignment
+            let span = self.current_span();
+            let expr = self.parse_expr()?;
+
+            // Check for assignment
+            if self.check(&Token::Eq) {
+                self.advance();
+                let value = self.parse_expr()?;
+                Ok(Stmt::Assign {
+                    target: expr,
+                    value,
+                    span,
+                })
+            } else {
+                Ok(Stmt::Expr(expr))
+            }
         }
+    }
+
+    fn parse_while(&mut self) -> Result<Stmt, String> {
+        let span = self.current_span();
+        self.expect(&Token::While)?;
+        let condition = self.parse_expr()?;
+        self.skip_newlines();
+        self.expect(&Token::Indent)?;
+        let body = self.parse_block()?;
+        Ok(Stmt::While {
+            condition,
+            body,
+            span,
+        })
+    }
+
+    fn parse_for(&mut self) -> Result<Stmt, String> {
+        let span = self.current_span();
+        self.expect(&Token::For)?;
+        let var = self.expect_ident()?;
+        self.expect(&Token::In)?;
+        let iterable = self.parse_expr()?;
+        self.skip_newlines();
+        self.expect(&Token::Indent)?;
+        let body = self.parse_block()?;
+        Ok(Stmt::For {
+            var,
+            iterable,
+            body,
+            span,
+        })
     }
 
     fn parse_let(&mut self) -> Result<Stmt, String> {
@@ -486,6 +723,27 @@ impl<'a> Parser<'a> {
             let expr = self.parse_unary()?;
             return Ok(Expr::Unary(UnaryOp::Not, Box::new(expr), span));
         }
+        // Heap allocation: heap expr
+        if self.check(&Token::Heap) {
+            let span = self.current_span();
+            self.advance();
+            let expr = self.parse_unary()?;
+            return Ok(Expr::HeapAlloc(Box::new(expr), span));
+        }
+        // Reference-counted allocation: rc expr
+        if self.check(&Token::Rc) {
+            let span = self.current_span();
+            self.advance();
+            let expr = self.parse_unary()?;
+            return Ok(Expr::RcAlloc(Box::new(expr), span));
+        }
+        // Atomically reference-counted allocation: arc expr
+        if self.check(&Token::Arc) {
+            let span = self.current_span();
+            self.advance();
+            let expr = self.parse_unary()?;
+            return Ok(Expr::ArcAlloc(Box::new(expr), span));
+        }
         self.parse_call()
     }
 
@@ -496,6 +754,23 @@ impl<'a> Parser<'a> {
             if self.check(&Token::LParen) {
                 let span = self.current_span();
                 self.advance();
+
+                // Check if this is a struct construction with named fields
+                // by looking ahead for "ident:"
+                if let Expr::Ident(name, _) = &expr {
+                    let name = name.clone();
+                    if let Some(fields) = self.try_parse_struct_fields()? {
+                        self.expect(&Token::RParen)?;
+                        expr = Expr::StructConstruct {
+                            name,
+                            fields,
+                            span,
+                        };
+                        continue;
+                    }
+                }
+
+                // Regular function call
                 let mut args = Vec::new();
                 while !self.check(&Token::RParen) {
                     args.push(self.parse_expr()?);
@@ -516,6 +791,44 @@ impl<'a> Parser<'a> {
         }
 
         Ok(expr)
+    }
+
+    /// Try to parse struct fields like `x: 1, y: 2`
+    /// Returns None if not a struct construction (no colon after first ident)
+    fn try_parse_struct_fields(&mut self) -> Result<Option<Vec<(String, Expr)>>, String> {
+        // Save position
+        let saved_pos = self.pos;
+
+        // Check if first arg looks like "ident:"
+        if let Token::Ident(first_name) = self.peek() {
+            let first_name = first_name.clone();
+            self.advance();
+
+            if self.check(&Token::Colon) {
+                self.advance();
+                let first_value = self.parse_expr()?;
+
+                let mut fields = vec![(first_name, first_value)];
+
+                while self.check(&Token::Comma) {
+                    self.advance();
+                    if self.check(&Token::RParen) {
+                        break;
+                    }
+                    let field_name = self.expect_ident()?;
+                    self.expect(&Token::Colon)?;
+                    let field_value = self.parse_expr()?;
+                    fields.push((field_name, field_value));
+                }
+
+                return Ok(Some(fields));
+            }
+
+            // Not a struct construction, restore position
+            self.pos = saved_pos;
+        }
+
+        Ok(None)
     }
 
     fn parse_primary(&mut self) -> Result<Expr, String> {
@@ -544,6 +857,35 @@ impl<'a> Parser<'a> {
             Token::Ident(name) => {
                 let val = name.clone();
                 self.advance();
+
+                // Check for enum construction syntax: Type::Variant(value)
+                if self.check(&Token::DoubleColon) {
+                    self.advance();
+                    let variant = self.expect_ident()?;
+
+                    // Check for value in parentheses
+                    let value = if self.check(&Token::LParen) {
+                        self.advance();
+                        if self.check(&Token::RParen) {
+                            self.advance();
+                            None
+                        } else {
+                            let v = self.parse_expr()?;
+                            self.expect(&Token::RParen)?;
+                            Some(Box::new(v))
+                        }
+                    } else {
+                        None
+                    };
+
+                    return Ok(Expr::EnumConstruct {
+                        enum_name: Some(val),
+                        variant,
+                        value,
+                        span,
+                    });
+                }
+
                 Ok(Expr::Ident(val, span))
             }
             Token::LParen => {
@@ -554,8 +896,60 @@ impl<'a> Parser<'a> {
             }
             Token::If => self.parse_if(),
             Token::Match => self.parse_match(),
+            Token::SelfKeyword => {
+                self.advance();
+                Ok(Expr::Ident("self".to_string(), span))
+            }
+            Token::Pipe => self.parse_closure(),
             _ => Err(format!("Unexpected token: {:?}", self.peek())),
         }
+    }
+
+    /// Parse a closure expression: |params| expr or || expr
+    fn parse_closure(&mut self) -> Result<Expr, String> {
+        let span = self.current_span();
+        self.expect(&Token::Pipe)?;
+
+        // Parse parameters
+        let mut params = Vec::new();
+        if !self.check(&Token::Pipe) {
+            loop {
+                let param_span = self.current_span();
+                let name = self.expect_ident()?;
+
+                // Optional type annotation
+                let ty = if self.check(&Token::Colon) {
+                    self.advance();
+                    self.parse_type()?
+                } else {
+                    // Infer type later
+                    Type::Named("_".to_string())
+                };
+
+                params.push(Param {
+                    name,
+                    ty,
+                    span: param_span,
+                });
+
+                if self.check(&Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(&Token::Pipe)?;
+
+        // Parse body expression
+        let body = self.parse_expr()?;
+
+        Ok(Expr::Lambda {
+            params,
+            body: Box::new(body),
+            span,
+        })
     }
 
     fn parse_if(&mut self) -> Result<Expr, String> {
@@ -1070,6 +1464,399 @@ mod tests {
                 }
             } else {
                 panic!("Expected heap type");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_while_loop() {
+        let source = r#"fn main()
+    while true
+        1
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            assert_eq!(f.body.len(), 1);
+            if let Stmt::While { condition, body, .. } = &f.body[0] {
+                assert!(matches!(condition, Expr::Bool(true, _)));
+                assert_eq!(body.len(), 1);
+            } else {
+                panic!("Expected while statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_for_loop() {
+        let source = r#"fn main()
+    for i in 10
+        i
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::For { var, .. } = &f.body[0] {
+                assert_eq!(var, "i");
+            } else {
+                panic!("Expected for statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_break_continue() {
+        let source = r#"fn main()
+    while true
+        break
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::While { body, .. } = &f.body[0] {
+                assert!(matches!(body[0], Stmt::Break(_)));
+            } else {
+                panic!("Expected while statement with break");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_assignment() {
+        let source = r#"fn main()
+    let mut x = 0
+    x = 5
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            assert_eq!(f.body.len(), 2);
+            if let Stmt::Assign { target, value, .. } = &f.body[1] {
+                if let Expr::Ident(name, _) = target {
+                    assert_eq!(name, "x");
+                } else {
+                    panic!("Expected identifier as target");
+                }
+                if let Expr::Int(n, _) = value {
+                    assert_eq!(*n, 5);
+                } else {
+                    panic!("Expected int literal as value");
+                }
+            } else {
+                panic!("Expected assignment statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_struct_construction() {
+        let source = r#"fn main()
+    let p = Point(x: 1, y: 2)
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::StructConstruct { name, fields, .. } = value {
+                    assert_eq!(name, "Point");
+                    assert_eq!(fields.len(), 2);
+                    assert_eq!(fields[0].0, "x");
+                    assert_eq!(fields[1].0, "y");
+                } else {
+                    panic!("Expected struct construction");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_enum_construction() {
+        let source = r#"fn main()
+    let x = Option::Some(42)
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::EnumConstruct { enum_name, variant, value: inner, .. } = value {
+                    assert_eq!(enum_name, &Some("Option".to_string()));
+                    assert_eq!(variant, "Some");
+                    assert!(inner.is_some());
+                } else {
+                    panic!("Expected enum construction");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_enum_none_variant() {
+        let source = r#"fn main()
+    let x = Option::None
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::EnumConstruct { enum_name, variant, value: inner, .. } = value {
+                    assert_eq!(enum_name, &Some("Option".to_string()));
+                    assert_eq!(variant, "None");
+                    assert!(inner.is_none());
+                } else {
+                    panic!("Expected enum construction");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_heap_alloc() {
+        let source = r#"fn main()
+    let x = heap 42
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::HeapAlloc(inner, _) = value {
+                    assert!(matches!(inner.as_ref(), Expr::Int(42, _)));
+                } else {
+                    panic!("Expected heap allocation");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_rc_alloc() {
+        let source = r#"fn main()
+    let x = rc 100
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::RcAlloc(inner, _) = value {
+                    assert!(matches!(inner.as_ref(), Expr::Int(100, _)));
+                } else {
+                    panic!("Expected rc allocation");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_arc_alloc() {
+        let source = r#"fn main()
+    let x = arc 200
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::ArcAlloc(inner, _) = value {
+                    assert!(matches!(inner.as_ref(), Expr::Int(200, _)));
+                } else {
+                    panic!("Expected arc allocation");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_trait() {
+        let source = r#"trait Add[T]
+    fn add(self, other: T) -> T
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Trait(t) = &program.items[0] {
+            assert_eq!(t.name, "Add");
+            assert_eq!(t.generics, vec!["T"]);
+            assert_eq!(t.methods.len(), 1);
+            assert_eq!(t.methods[0].name, "add");
+        } else {
+            panic!("Expected trait definition");
+        }
+    }
+
+    #[test]
+    fn test_parse_impl() {
+        let source = r#"impl Add[Point] for Point
+    fn add(self, other: Point) -> Point
+        Point(x: self.x + other.x, y: self.y + other.y)
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Impl(impl_def) = &program.items[0] {
+            assert_eq!(impl_def.trait_name, Some("Add".to_string()));
+            assert_eq!(impl_def.trait_generics.len(), 1);
+            assert!(matches!(&impl_def.target_type, Type::Named(n) if n == "Point"));
+            assert_eq!(impl_def.methods.len(), 1);
+            assert_eq!(impl_def.methods[0].name, "add");
+        } else {
+            panic!("Expected impl definition");
+        }
+    }
+
+    #[test]
+    fn test_parse_inherent_impl() {
+        let source = r#"impl Point
+    fn new(x: i64, y: i64) -> Point
+        Point(x: x, y: y)
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Impl(impl_def) = &program.items[0] {
+            assert_eq!(impl_def.trait_name, None);
+            assert!(matches!(&impl_def.target_type, Type::Named(n) if n == "Point"));
+            assert_eq!(impl_def.methods.len(), 1);
+            assert_eq!(impl_def.methods[0].name, "new");
+        } else {
+            panic!("Expected impl definition");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_simple() {
+        let source = "use std.io\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Use(u) = &program.items[0] {
+            assert_eq!(u.path, vec!["std", "io"]);
+            assert!(!u.wildcard);
+            assert_eq!(u.alias, None);
+        } else {
+            panic!("Expected use statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_specific_item() {
+        let source = "use std.io.print\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Use(u) = &program.items[0] {
+            assert_eq!(u.path, vec!["std", "io", "print"]);
+            assert!(!u.wildcard);
+            assert_eq!(u.alias, None);
+        } else {
+            panic!("Expected use statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_wildcard() {
+        let source = "use std.io.*\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Use(u) = &program.items[0] {
+            assert_eq!(u.path, vec!["std", "io"]);
+            assert!(u.wildcard);
+            assert_eq!(u.alias, None);
+        } else {
+            panic!("Expected use statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_alias() {
+        let source = "use std.io.print as p\n";
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Use(u) = &program.items[0] {
+            assert_eq!(u.path, vec!["std", "io", "print"]);
+            assert!(!u.wildcard);
+            assert_eq!(u.alias, Some("p".to_string()));
+        } else {
+            panic!("Expected use statement");
+        }
+    }
+
+    #[test]
+    fn test_parse_closure_no_params() {
+        let source = r#"fn main()
+    let f = || 42
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::Lambda { params, body, .. } = value {
+                    assert!(params.is_empty());
+                    if let Expr::Int(n, _) = body.as_ref() {
+                        assert_eq!(*n, 42);
+                    } else {
+                        panic!("Expected int literal in body");
+                    }
+                } else {
+                    panic!("Expected lambda expression");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_closure_with_params() {
+        let source = r#"fn main()
+    let add = |x, y| x + y
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::Lambda { params, body, .. } = value {
+                    assert_eq!(params.len(), 2);
+                    assert_eq!(params[0].name, "x");
+                    assert_eq!(params[1].name, "y");
+                    if let Expr::Binary(_, _, _, _) = body.as_ref() {
+                        // OK
+                    } else {
+                        panic!("Expected binary expression in body");
+                    }
+                } else {
+                    panic!("Expected lambda expression");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_closure_with_typed_params() {
+        let source = r#"fn main()
+    let add = |x: i64, y: i64| x + y
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { value, .. } = &f.body[0] {
+                if let Expr::Lambda { params, .. } = value {
+                    assert_eq!(params.len(), 2);
+                    assert!(matches!(&params[0].ty, Type::Named(n) if n == "i64"));
+                    assert!(matches!(&params[1].ty, Type::Named(n) if n == "i64"));
+                } else {
+                    panic!("Expected lambda expression");
+                }
             }
         }
     }

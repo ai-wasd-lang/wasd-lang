@@ -5,8 +5,11 @@
 
 #![allow(dead_code)]
 
+pub mod collections;
 pub mod io;
 pub mod prelude;
+pub mod string;
+pub mod types;
 
 use crate::types::WasdType;
 use std::collections::HashMap;
@@ -42,6 +45,9 @@ pub fn get_stdlib() -> HashMap<String, StdModule> {
 
     modules.insert("std.io".to_string(), io::module());
     modules.insert("std.prelude".to_string(), prelude::module());
+    modules.insert("std.types".to_string(), types::module());
+    modules.insert("std.collections".to_string(), collections::module());
+    modules.insert("std.string".to_string(), string::module());
 
     modules
 }

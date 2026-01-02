@@ -9,6 +9,22 @@
 pub struct IrModule {
     pub functions: Vec<IrFunction>,
     pub structs: Vec<IrStruct>,
+    pub enums: Vec<IrEnum>,
+}
+
+/// An IR enum definition (represented as tagged union).
+#[derive(Debug, Clone)]
+pub struct IrEnum {
+    pub name: String,
+    pub variants: Vec<IrEnumVariant>,
+}
+
+/// An IR enum variant.
+#[derive(Debug, Clone)]
+pub struct IrEnumVariant {
+    pub name: String,
+    pub tag: u32,
+    pub payload_ty: Option<IrType>,
 }
 
 /// An IR function.
@@ -60,6 +76,28 @@ pub enum IrInst {
         ptr: String,
         indices: Vec<IrValue>,
     },
+    /// Heap allocation (malloc)
+    HeapAlloc {
+        dest: String,
+        ty: IrType,
+        value: Option<IrValue>,
+    },
+    /// Reference-counted allocation
+    RcAlloc {
+        dest: String,
+        ty: IrType,
+        value: Option<IrValue>,
+    },
+    /// Atomically reference-counted allocation
+    ArcAlloc {
+        dest: String,
+        ty: IrType,
+        value: Option<IrValue>,
+    },
+    /// Increment reference count
+    RcIncRef { ptr: String },
+    /// Decrement reference count (may free)
+    RcDecRef { ptr: String },
 }
 
 /// Block terminators.
