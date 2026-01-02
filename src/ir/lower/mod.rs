@@ -36,6 +36,10 @@ pub(super) struct Lowerer {
     pub(super) impl_methods: HashMap<String, Vec<String>>,
     /// Maps closure variable name -> closure function name
     pub(super) closure_bindings: HashMap<String, String>,
+    /// Maps closure function name -> list of captured variable names
+    pub(super) closure_captures: HashMap<String, Vec<String>>,
+    /// Stack of in-scope variables (name -> type) for capture analysis
+    pub(super) scope_vars: HashMap<String, IrType>,
 }
 
 impl Lowerer {
@@ -53,6 +57,8 @@ impl Lowerer {
             variable_types: HashMap::new(),
             impl_methods: HashMap::new(),
             closure_bindings: HashMap::new(),
+            closure_captures: HashMap::new(),
+            scope_vars: HashMap::new(),
         }
     }
 

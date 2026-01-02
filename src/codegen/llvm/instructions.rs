@@ -136,6 +136,19 @@ impl<'ctx> CodeGen<'ctx> {
                             .build_store(alloca, ret_val)
                             .map_err(|e| format!("Failed to build store: {}", e))?;
                         self.variables.insert(dest.clone(), alloca);
+                        self.variable_types.insert(dest.clone(), ty);
+                    } else {
+                        // For void functions, create a placeholder variable with unit/void value
+                        let ty = self.context.i64_type();
+                        let alloca = self
+                            .builder
+                            .build_alloca(ty, dest)
+                            .map_err(|e| format!("Failed to build alloca: {}", e))?;
+                        self.builder
+                            .build_store(alloca, ty.const_zero())
+                            .map_err(|e| format!("Failed to build store: {}", e))?;
+                        self.variables.insert(dest.clone(), alloca);
+                        self.variable_types.insert(dest.clone(), ty.into());
                     }
                 }
             }

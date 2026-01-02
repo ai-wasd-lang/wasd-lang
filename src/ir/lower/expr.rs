@@ -36,14 +36,20 @@ impl Lowerer {
                     }
                     ast::Expr::Ident(name, _) => {
                         // Check if this is a closure call
-                        let func_name = if let Some(closure_func) = self.closure_bindings.get(name) {
-                            closure_func.clone()
+                        let (func_name, captures) = if let Some(closure_func) = self.closure_bindings.get(name) {
+                            let caps = self.closure_captures.get(closure_func).cloned().unwrap_or_default();
+                            (closure_func.clone(), caps)
                         } else {
-                            name.clone()
+                            (name.clone(), Vec::new())
                         };
 
-                        // Regular function call
-                        let ir_args: Vec<_> = args.iter().filter_map(|a| self.lower_expr(a)).collect();
+                        // Build args: captured vars first, then explicit args
+                        let mut ir_args: Vec<IrValue> = captures
+                            .iter()
+                            .map(|cap_name| IrValue::Var(cap_name.clone()))
+                            .collect();
+                        ir_args.extend(args.iter().filter_map(|a| self.lower_expr(a)));
+
                         let dest = self.fresh_var();
 
                         self.current_block.push(IrInst::Call {
@@ -362,9 +368,36 @@ impl Lowerer {
     ) -> Option<IrValue> {
         let closure_name = format!("__closure_{}", self.fresh_var());
 
+        // Collect parameter names (these are not captures)
+        let param_names: std::collections::HashSet<String> = params.iter().map(|p| p.name.clone()).collect();
+
+        // Find free variables in the body that need to be captured
+        let mut free_vars = Vec::new();
+        self.collect_free_vars(body, &param_names, &mut free_vars);
+
+        // Remove duplicates while preserving order
+        let mut seen = std::collections::HashSet::new();
+        free_vars.retain(|v| seen.insert(v.clone()));
+
+        // Store the captures for this closure
+        self.closure_captures.insert(closure_name.clone(), free_vars.clone());
+
         let saved_block = std::mem::take(&mut self.current_block);
         let saved_blocks = std::mem::take(&mut self.blocks);
         let saved_label = std::mem::replace(&mut self.current_label, "entry".to_string());
+
+        // Build closure params: captured vars first, then explicit params
+        let mut closure_params: Vec<(String, IrType)> = free_vars
+            .iter()
+            .map(|name| {
+                let ty = self.scope_vars.get(name).cloned().unwrap_or(IrType::I64);
+                (name.clone(), ty)
+            })
+            .collect();
+
+        for p in params {
+            closure_params.push((p.name.clone(), self.lower_type(&p.ty)));
+        }
 
         let body_val = self.lower_expr(body);
 
@@ -376,10 +409,7 @@ impl Lowerer {
 
         let closure_func = IrFunction {
             name: closure_name.clone(),
-            params: params
-                .iter()
-                .map(|p| (p.name.clone(), self.lower_type(&p.ty)))
-                .collect(),
+            params: closure_params,
             return_type: IrType::I64,
             blocks: vec![entry_block],
         };
@@ -391,5 +421,134 @@ impl Lowerer {
         self.current_label = saved_label;
 
         Some(IrValue::Var(closure_name))
+    }
+
+    /// Collect free variables from an expression that need to be captured.
+    /// `bound` contains variable names that are bound (params, local lets).
+    fn collect_free_vars(
+        &self,
+        expr: &ast::Expr,
+        bound: &std::collections::HashSet<String>,
+        free: &mut Vec<String>,
+    ) {
+        match expr {
+            ast::Expr::Ident(name, _) => {
+                // If the variable is in scope but not bound locally, it's a capture
+                if !bound.contains(name) && self.scope_vars.contains_key(name) {
+                    free.push(name.clone());
+                }
+            }
+            ast::Expr::Binary(left, _, right, _) => {
+                self.collect_free_vars(left, bound, free);
+                self.collect_free_vars(right, bound, free);
+            }
+            ast::Expr::Call(callee, _, args, _) => {
+                self.collect_free_vars(callee, bound, free);
+                for arg in args {
+                    self.collect_free_vars(arg, bound, free);
+                }
+            }
+            ast::Expr::If(cond, then_branch, else_branch, _) => {
+                self.collect_free_vars(cond, bound, free);
+                let mut then_bound = bound.clone();
+                for stmt in then_branch {
+                    self.collect_free_vars_stmt(stmt, &mut then_bound, free);
+                }
+                if let Some(else_stmts) = else_branch {
+                    let mut else_bound = bound.clone();
+                    for stmt in else_stmts {
+                        self.collect_free_vars_stmt(stmt, &mut else_bound, free);
+                    }
+                }
+            }
+            ast::Expr::Block(stmts, _) => {
+                let mut local_bound = bound.clone();
+                for stmt in stmts {
+                    self.collect_free_vars_stmt(stmt, &mut local_bound, free);
+                }
+            }
+            ast::Expr::Lambda { params, body, .. } => {
+                let mut inner_bound = bound.clone();
+                for p in params {
+                    inner_bound.insert(p.name.clone());
+                }
+                self.collect_free_vars(body, &inner_bound, free);
+            }
+            ast::Expr::FieldAccess(base, _, _) => {
+                self.collect_free_vars(base, bound, free);
+            }
+            ast::Expr::StructConstruct { fields, .. } => {
+                for (_, field_expr) in fields {
+                    self.collect_free_vars(field_expr, bound, free);
+                }
+            }
+            ast::Expr::EnumConstruct { value, .. } => {
+                if let Some(v) = value {
+                    self.collect_free_vars(v, bound, free);
+                }
+            }
+            ast::Expr::Match(scrutinee, arms, _) => {
+                self.collect_free_vars(scrutinee, bound, free);
+                for arm in arms {
+                    // Pattern bindings would extend bound, but for simplicity we just check the body
+                    self.collect_free_vars(&arm.body, bound, free);
+                }
+            }
+            ast::Expr::HeapAlloc(inner, _)
+            | ast::Expr::RcAlloc(inner, _)
+            | ast::Expr::ArcAlloc(inner, _)
+            | ast::Expr::Await(inner, _)
+            | ast::Expr::Try(inner, _) => {
+                self.collect_free_vars(inner, bound, free);
+            }
+            ast::Expr::Range { start, end, .. } => {
+                self.collect_free_vars(start, bound, free);
+                self.collect_free_vars(end, bound, free);
+            }
+            // Literals and unary ops
+            ast::Expr::Int(_, _)
+            | ast::Expr::Float(_, _)
+            | ast::Expr::Bool(_, _)
+            | ast::Expr::String(_, _) => {}
+            ast::Expr::Unary(_, inner, _) => {
+                self.collect_free_vars(inner, bound, free);
+            }
+        }
+    }
+
+    fn collect_free_vars_stmt(
+        &self,
+        stmt: &ast::Stmt,
+        bound: &mut std::collections::HashSet<String>,
+        free: &mut Vec<String>,
+    ) {
+        match stmt {
+            ast::Stmt::Let { name, value, .. } => {
+                self.collect_free_vars(value, bound, free);
+                bound.insert(name.clone());
+            }
+            ast::Stmt::Assign { target, value, .. } => {
+                self.collect_free_vars(target, bound, free);
+                self.collect_free_vars(value, bound, free);
+            }
+            ast::Stmt::Expr(e) | ast::Stmt::Return(Some(e), _) => {
+                self.collect_free_vars(e, bound, free);
+            }
+            ast::Stmt::Return(None, _) | ast::Stmt::Break(_) | ast::Stmt::Continue(_) => {}
+            ast::Stmt::While { condition, body, .. } => {
+                self.collect_free_vars(condition, bound, free);
+                for s in body {
+                    self.collect_free_vars_stmt(s, bound, free);
+                }
+            }
+            ast::Stmt::For { var, iterable, body, .. } => {
+                self.collect_free_vars(iterable, bound, free);
+                let mut loop_bound = bound.clone();
+                loop_bound.insert(var.clone());
+                for s in body {
+                    self.collect_free_vars_stmt(s, &mut loop_bound, free);
+                }
+            }
+        }
     }
 }

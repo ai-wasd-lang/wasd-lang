@@ -1,0 +1,14 @@
+use std.io
+
+fn main() -> i64 with [IO]
+    let x = 10
+    let y = 5
+
+    let add_to_xy = |a: i64| x + y + a
+    let result1 = add_to_xy(3)
+
+    let z = 100
+    let multiply_z = |n: i64| n * z
+    let result2 = multiply_z(2)
+
+    result1 + result2

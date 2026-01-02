@@ -34,6 +34,9 @@ impl Lowerer {
                     IrType::I64
                 };
 
+                // Track this variable in scope for closure capture analysis
+                self.scope_vars.insert(name.clone(), ir_type.clone());
+
                 self.current_block.push(IrInst::Alloca {
                     dest: name.clone(),
                     ty: ir_type.clone(),

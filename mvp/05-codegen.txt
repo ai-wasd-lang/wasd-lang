@@ -28,8 +28,10 @@ MISSING/INCOMPLETE:
 [ ] Struct field access codegen
     - README lists as "in progress"
 
-[ ] Closure capture codegen
-    - Environment capture at runtime
+[x] Closure capture codegen
+    - Environment capture via lambda lifting
+    - Captured variables passed as extra parameters
+    - Tested with multiple closures in same scope
 
 [ ] Async/await runtime
     - Syntax parsed
