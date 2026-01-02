@@ -15,10 +15,18 @@ impl<'a> Parser<'a> {
             false
         };
 
+        // Check for async modifier
+        let is_async = if self.check(&Token::Async) {
+            self.advance();
+            true
+        } else {
+            false
+        };
+
         match self.peek() {
             Token::Use => self.parse_use().map(Item::Use),
             Token::Import => self.parse_use().map(Item::Use), // import is an alias for use
-            Token::Fn => self.parse_function_with_visibility(is_pub).map(Item::Function),
+            Token::Fn => self.parse_function_impl(is_pub, is_async).map(Item::Function),
             Token::Struct => self.parse_struct_with_visibility(is_pub).map(Item::Struct),
             Token::Enum => self.parse_enum_with_visibility(is_pub).map(Item::Enum),
             Token::Trait => self.parse_trait().map(Item::Trait),
@@ -85,6 +93,11 @@ impl<'a> Parser<'a> {
 
     /// Parse a function definition with visibility.
     pub(super) fn parse_function_with_visibility(&mut self, is_pub: bool) -> Result<Function, String> {
+        self.parse_function_impl(is_pub, false)
+    }
+
+    /// Parse a function definition with visibility and async flag.
+    pub(super) fn parse_function_impl(&mut self, is_pub: bool, is_async: bool) -> Result<Function, String> {
         let start = self.current_span();
         self.expect(&Token::Fn)?;
         let name = self.expect_ident()?;
@@ -116,12 +129,18 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let effects = if self.check(&Token::With) {
+        // Parse explicit effects or auto-inject Async for async functions
+        let mut effects = if self.check(&Token::With) {
             self.advance();
             self.parse_effects()?
         } else {
             Vec::new()
         };
+
+        // Async functions automatically have the Async effect
+        if is_async && !effects.contains(&"Async".to_string()) {
+            effects.push("Async".to_string());
+        }
 
         self.skip_newlines();
         self.expect(&Token::Indent)?;
@@ -135,6 +154,7 @@ impl<'a> Parser<'a> {
 
         Ok(Function {
             visibility,
+            is_async,
             name,
             generics,
             params,

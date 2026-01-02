@@ -51,6 +51,7 @@ impl Default for Visibility {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub visibility: Visibility,
+    pub is_async: bool,
     pub name: String,
     pub generics: Vec<String>,
     pub params: Vec<Param>,
@@ -236,6 +237,8 @@ pub enum Expr {
         end: Box<Expr>,
         span: Span,
     },
+    /// Await expression: await expr
+    Await(Box<Expr>, Span),
 }
 
 /// Binary operators.

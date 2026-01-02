@@ -379,4 +379,55 @@ fn main() -> String with [IO]
         let errors = result.unwrap_err();
         assert!(errors[0].contains("Async"));
     }
+
+    #[test]
+    fn test_async_function_has_async_effect() {
+        // async fn automatically gets [Async] effect
+        let source = r#"async fn fetch() -> String
+    "data"
+
+fn main() -> String with [Async]
+    fetch()
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_await_in_async_function() {
+        // await is valid in async functions
+        let source = r#"async fn fetch() -> String
+    "data"
+
+async fn main() -> String
+    await fetch()
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_await_in_non_async_function_error() {
+        // await is not valid in non-async functions
+        let source = r#"async fn fetch() -> String
+    "data"
+
+fn main() -> String
+    await fetch()
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors[0].contains("await"));
+    }
+
+    #[test]
+    fn test_async_with_explicit_effects() {
+        // async fn with explicit effects still works
+        let source = r#"async fn io_fetch() -> String with [IO]
+    "data"
+
+fn main() -> String with [IO, Async]
+    io_fetch()
+"#;
+        assert!(check(source).is_ok());
+    }
 }

@@ -22,6 +22,7 @@ impl Monomorphizer {
 
         Function {
             visibility: func.visibility,
+            is_async: func.is_async,
             name: func.name.clone(),
             generics: Vec::new(), // Generics are resolved during monomorphization
             params,
@@ -203,6 +204,9 @@ impl Monomorphizer {
                 end: Box::new(self.transform_expr(end)),
                 span: span.clone(),
             },
+            Expr::Await(e, span) => {
+                Expr::Await(Box::new(self.transform_expr(e)), span.clone())
+            }
         }
     }
 

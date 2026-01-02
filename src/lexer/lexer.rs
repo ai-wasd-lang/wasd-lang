@@ -343,6 +343,8 @@ impl<'a> Lexer<'a> {
             "heap" => Token::Heap,
             "rc" => Token::Rc,
             "arc" => Token::Arc,
+            "async" => Token::Async,
+            "await" => Token::Await,
             "true" => Token::Bool(true),
             "false" => Token::Bool(false),
             "and" => Token::And,

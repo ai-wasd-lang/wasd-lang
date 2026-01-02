@@ -1,0 +1,23 @@
+// Async/await example in WASD
+// Demonstrates async functions and await expressions
+
+use std.io
+
+// Async function - automatically has [Async] effect
+async fn fetch_data() -> i64
+    42
+
+// Async function with explicit additional effects
+async fn fetch_with_io() -> i64 with [IO]
+    println("Fetching data...")
+    100
+
+// Async function that awaits other async functions
+async fn process() -> i64
+    let data = await fetch_data()
+    data + 1
+
+// Main function with Async effect to call async functions
+fn main() -> i64 with [Async]
+    let result = fetch_data()
+    result

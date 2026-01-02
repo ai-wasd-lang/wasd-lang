@@ -117,6 +117,11 @@ impl Lowerer {
                 // If used as a value, just return the end (for simple use cases like `for i in n`)
                 self.lower_expr(end)
             }
+            ast::Expr::Await(expr, _) => {
+                // For now, await is a no-op at IR level (just returns the awaited value)
+                // Real async runtime support would transform this into state machine
+                self.lower_expr(expr)
+            }
             _ => None,
         }
     }

@@ -53,6 +53,8 @@ pub enum Token {
     Rc,
     Arc,
     SelfKeyword,
+    Async,
+    Await,
 
     // Operators
     Plus,
@@ -133,6 +135,8 @@ impl fmt::Display for Token {
             Token::Heap => write!(f, "heap"),
             Token::Rc => write!(f, "rc"),
             Token::Arc => write!(f, "arc"),
+            Token::Async => write!(f, "async"),
+            Token::Await => write!(f, "await"),
             Token::Plus => write!(f, "+"),
             Token::Minus => write!(f, "-"),
             Token::Star => write!(f, "*"),

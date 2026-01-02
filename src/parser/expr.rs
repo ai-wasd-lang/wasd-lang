@@ -153,6 +153,13 @@ impl<'a> Parser<'a> {
             let expr = self.parse_unary()?;
             return Ok(Expr::ArcAlloc(Box::new(expr), span));
         }
+        // Await expression: await expr
+        if self.check(&Token::Await) {
+            let span = self.current_span();
+            self.advance();
+            let expr = self.parse_unary()?;
+            return Ok(Expr::Await(Box::new(expr), span));
+        }
         self.parse_call()
     }
 

@@ -233,6 +233,15 @@ impl TypeChecker {
                 // Range is a special type - for now treat as tuple of (start, end)
                 Ok(WasdType::Named("Range".to_string()))
             }
+            Expr::Await(expr, _) => {
+                // Validate that we're in an async context
+                if !self.current_effects.contains(&"Async".to_string()) {
+                    return Err("'await' can only be used in async functions (functions with [Async] effect)".to_string());
+                }
+                // Type check the awaited expression and return its type
+                let inner_ty = self.infer_expr(expr)?;
+                Ok(inner_ty)
+            }
         }
     }
 

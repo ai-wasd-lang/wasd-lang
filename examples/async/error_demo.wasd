@@ -1,0 +1,9 @@
+// Error demo: await in non-async function
+// This should fail to compile
+
+async fn fetch_data() -> i64
+    42
+
+// ERROR: Using await in non-async function
+fn main() -> i64
+    await fetch_data()
