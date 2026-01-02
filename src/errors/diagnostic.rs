@@ -1,5 +1,7 @@
 //! Diagnostic reporting for WASD compiler errors.
 
+#![allow(dead_code)]
+
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
 /// The kind of diagnostic.

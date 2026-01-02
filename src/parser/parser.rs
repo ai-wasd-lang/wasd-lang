@@ -1,10 +1,13 @@
 //! Recursive descent parser for WASD.
 
+#![allow(dead_code)]
+
 use super::ast::*;
 use crate::lexer::{Lexer, Span, Token};
 
 /// The WASD parser.
 pub struct Parser<'a> {
+    #[allow(dead_code)]
     lexer: Lexer<'a>,
     tokens: Vec<(Token, Span)>,
     pos: usize,
@@ -39,11 +42,54 @@ impl<'a> Parser<'a> {
 
     fn parse_item(&mut self) -> Result<Item, String> {
         match self.peek() {
+            Token::Use => self.parse_use().map(Item::Use),
             Token::Fn => self.parse_function().map(Item::Function),
             Token::Struct => self.parse_struct().map(Item::Struct),
             Token::Enum => self.parse_enum().map(Item::Enum),
             _ => Err(format!("Expected item, found {:?}", self.peek())),
         }
+    }
+
+    fn parse_use(&mut self) -> Result<UseStmt, String> {
+        let span = self.current_span();
+        self.expect(&Token::Use)?;
+
+        // Parse the path: std.io.print or std.io
+        let mut path = Vec::new();
+        path.push(self.expect_ident()?);
+
+        let mut wildcard = false;
+
+        while self.check(&Token::Dot) {
+            self.advance(); // consume the dot
+
+            // Check for wildcard: std.io.*
+            if self.check(&Token::Star) {
+                self.advance();
+                wildcard = true;
+                break;
+            }
+
+            path.push(self.expect_ident()?);
+        }
+
+        // Check for alias: use std.io.print as p
+        let alias = if self.check(&Token::As) {
+            self.advance();
+            Some(self.expect_ident()?)
+        } else {
+            None
+        };
+
+        // Consume optional newline
+        self.skip_newlines();
+
+        Ok(UseStmt {
+            path,
+            wildcard,
+            alias,
+            span,
+        })
     }
 
     fn parse_function(&mut self) -> Result<Function, String> {
@@ -476,29 +522,29 @@ impl<'a> Parser<'a> {
         let span = self.current_span();
         match self.peek() {
             Token::Int(n) => {
-                let n = n;
+                let val = n;
                 self.advance();
-                Ok(Expr::Int(n, span))
+                Ok(Expr::Int(val, span))
             }
             Token::Float(n) => {
-                let n = n;
+                let val = n;
                 self.advance();
-                Ok(Expr::Float(n, span))
+                Ok(Expr::Float(val, span))
             }
             Token::String(s) => {
-                let s = s.clone();
+                let val = s.clone();
                 self.advance();
-                Ok(Expr::String(s, span))
+                Ok(Expr::String(val, span))
             }
             Token::Bool(b) => {
-                let b = b;
+                let val = b;
                 self.advance();
-                Ok(Expr::Bool(b, span))
+                Ok(Expr::Bool(val, span))
             }
             Token::Ident(name) => {
-                let name = name.clone();
+                let val = name.clone();
                 self.advance();
-                Ok(Expr::Ident(name, span))
+                Ok(Expr::Ident(val, span))
             }
             Token::LParen => {
                 self.advance();
@@ -654,5 +700,377 @@ impl<'a> Parser<'a> {
 
     fn is_at_end(&self) -> bool {
         matches!(self.peek(), Token::Eof)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple_function() {
+        let source = r#"fn add(a: i64, b: i64) -> i64
+    a + b
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+        assert_eq!(program.items.len(), 1);
+
+        if let Item::Function(f) = &program.items[0] {
+            assert_eq!(f.name, "add");
+            assert_eq!(f.params.len(), 2);
+            assert_eq!(f.params[0].name, "a");
+            assert_eq!(f.params[1].name, "b");
+            assert!(f.return_type.is_some());
+        } else {
+            panic!("Expected function");
+        }
+    }
+
+    #[test]
+    fn test_parse_struct() {
+        let source = r#"struct Point
+    x: f64
+    y: f64
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+        assert_eq!(program.items.len(), 1);
+
+        if let Item::Struct(s) = &program.items[0] {
+            assert_eq!(s.name, "Point");
+            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.fields[0].name, "x");
+            assert_eq!(s.fields[1].name, "y");
+        } else {
+            panic!("Expected struct");
+        }
+    }
+
+    #[test]
+    fn test_parse_generic_struct() {
+        let source = r#"struct Container[T]
+    value: T
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Struct(s) = &program.items[0] {
+            assert_eq!(s.name, "Container");
+            assert_eq!(s.generics, vec!["T"]);
+        } else {
+            panic!("Expected struct");
+        }
+    }
+
+    #[test]
+    fn test_parse_enum() {
+        let source = r#"enum Option[T]
+    Some(T)
+    None
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Enum(e) = &program.items[0] {
+            assert_eq!(e.name, "Option");
+            assert_eq!(e.generics, vec!["T"]);
+            assert_eq!(e.variants.len(), 2);
+            assert_eq!(e.variants[0].name, "Some");
+            assert_eq!(e.variants[0].fields.len(), 1);
+            assert_eq!(e.variants[1].name, "None");
+            assert_eq!(e.variants[1].fields.len(), 0);
+        } else {
+            panic!("Expected enum");
+        }
+    }
+
+    #[test]
+    fn test_parse_let_statement() {
+        let source = r#"fn main()
+    let x = 42
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            assert_eq!(f.body.len(), 1);
+            if let Stmt::Let {
+                name,
+                mutable,
+                value,
+                ..
+            } = &f.body[0]
+            {
+                assert_eq!(name, "x");
+                assert!(!mutable);
+                if let Expr::Int(n, _) = value {
+                    assert_eq!(*n, 42);
+                } else {
+                    panic!("Expected int literal");
+                }
+            } else {
+                panic!("Expected let statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_mutable_let() {
+        let source = r#"fn main()
+    let mut counter = 0
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let { mutable, .. } = &f.body[0] {
+                assert!(mutable);
+            } else {
+                panic!("Expected let statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_binary_expressions() {
+        let source = r#"fn main()
+    1 + 2 * 3
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Expr(Expr::Binary(left, BinOp::Add, right, _)) = &f.body[0] {
+                // Verify precedence: should be 1 + (2 * 3)
+                if let Expr::Int(1, _) = left.as_ref() {
+                } else {
+                    panic!("Expected 1 on left");
+                }
+                if let Expr::Binary(_, BinOp::Mul, _, _) = right.as_ref() {
+                } else {
+                    panic!("Expected multiplication on right");
+                }
+            } else {
+                panic!("Expected binary expression");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_comparison_operators() {
+        let source = r#"fn main()
+    x < 10
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Expr(Expr::Binary(_, BinOp::Lt, _, _)) = &f.body[0] {
+            } else {
+                panic!("Expected comparison expression");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_function_call() {
+        let source = r#"fn main()
+    add(1, 2)
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Expr(Expr::Call(callee, args, _)) = &f.body[0] {
+                if let Expr::Ident(name, _) = callee.as_ref() {
+                    assert_eq!(name, "add");
+                }
+                assert_eq!(args.len(), 2);
+            } else {
+                panic!("Expected function call");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_return_statement() {
+        let source = r#"fn add(a: i64, b: i64) -> i64
+    return a + b
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Return(Some(_), _) = &f.body[0] {
+            } else {
+                panic!("Expected return statement");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_effects() {
+        let source = r#"fn read_file() -> String with [IO]
+    file_contents
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            assert_eq!(f.effects, vec!["IO"]);
+        } else {
+            panic!("Expected function");
+        }
+    }
+
+    #[test]
+    fn test_parse_reference_types() {
+        let source = r#"fn borrow(x: &i64) -> i64
+    x
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Type::Reference(inner, is_mut) = &f.params[0].ty {
+                assert!(!is_mut);
+                if let Type::Named(name) = inner.as_ref() {
+                    assert_eq!(name, "i64");
+                }
+            } else {
+                panic!("Expected reference type");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_mutable_reference() {
+        let source = r#"fn mutate(x: &mut i64)
+    x
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Type::Reference(_, is_mut) = &f.params[0].ty {
+                assert!(is_mut);
+            } else {
+                panic!("Expected mutable reference type");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_unary_operators() {
+        let source = r#"fn main()
+    -x
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Expr(Expr::Unary(UnaryOp::Neg, _, _)) = &f.body[0] {
+            } else {
+                panic!("Expected unary negation");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_boolean_literal() {
+        let source = r#"fn main()
+    let flag = true
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let {
+                value: Expr::Bool(true, _),
+                ..
+            } = &f.body[0]
+            {
+            } else {
+                panic!("Expected boolean true");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_float_literal() {
+        let source = r#"fn main()
+    let pi = 3.14
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Let {
+                value: Expr::Float(n, _),
+                ..
+            } = &f.body[0]
+            {
+                assert!((*n - 3.14).abs() < 0.001);
+            } else {
+                panic!("Expected float literal");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_logical_operators() {
+        let source = r#"fn main()
+    a and b or c
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Expr(Expr::Binary(_, BinOp::Or, _, _)) = &f.body[0] {
+                // And has higher precedence, so Or should be outer
+            } else {
+                panic!("Expected logical expression with Or as outer operator");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_field_access() {
+        let source = r#"fn main()
+    point.x
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Stmt::Expr(Expr::FieldAccess(obj, field, _)) = &f.body[0] {
+                if let Expr::Ident(name, _) = obj.as_ref() {
+                    assert_eq!(name, "point");
+                }
+                assert_eq!(field, "x");
+            } else {
+                panic!("Expected field access");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_heap_type() {
+        let source = r#"fn alloc() -> heap i64
+    x
+"#;
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+
+        if let Item::Function(f) = &program.items[0] {
+            if let Some(Type::Heap(inner)) = &f.return_type {
+                if let Type::Named(name) = inner.as_ref() {
+                    assert_eq!(name, "i64");
+                }
+            } else {
+                panic!("Expected heap type");
+            }
+        }
     }
 }

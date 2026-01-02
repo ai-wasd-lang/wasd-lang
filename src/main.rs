@@ -3,8 +3,13 @@
 //! A compiler for the WASD language with explicit semantics,
 //! zero-cost abstractions, and memory safety.
 
-use clap::{Parser, Subcommand};
+#![allow(clippy::module_inception)]
+
+use clap::{Parser as ClapParser, Subcommand};
+use inkwell::context::Context;
+use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 mod borrow;
 mod codegen;
@@ -14,7 +19,14 @@ mod lexer;
 mod parser;
 mod types;
 
-#[derive(Parser)]
+use borrow::BorrowChecker;
+use codegen::CodeGen;
+use errors::{report_error, Diagnostic};
+use ir::lower_program;
+use parser::Parser;
+use types::TypeChecker;
+
+#[derive(ClapParser)]
 #[command(name = "wasd")]
 #[command(author, version, about = "The WASD programming language compiler", long_about = None)]
 struct Cli {
@@ -67,29 +79,180 @@ enum Commands {
     },
 }
 
+fn compile(file: &PathBuf, output: Option<&PathBuf>) -> Result<PathBuf, String> {
+    let filename = file.to_string_lossy();
+    let source = fs::read_to_string(file).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Phase 1: Lexing and Parsing
+    let mut parser = Parser::new(&source);
+    let program = parser.parse().inspect_err(|e| {
+        report_error(&filename, &source, &Diagnostic::error(e, (0, 1)));
+    })?;
+
+    // Phase 2: Type Checking
+    let mut type_checker = TypeChecker::new();
+    if let Err(errors) = type_checker.check_program(&program) {
+        for err in &errors {
+            report_error(&filename, &source, &Diagnostic::error(err, (0, 1)));
+        }
+        return Err(format!("{} type errors found", errors.len()));
+    }
+
+    // Phase 3: Borrow Checking
+    let mut borrow_checker = BorrowChecker::new();
+    if let Err(errors) = borrow_checker.check_program(&program) {
+        for err in &errors {
+            report_error(&filename, &source, &Diagnostic::error(err, (0, 1)));
+        }
+        return Err(format!("{} borrow errors found", errors.len()));
+    }
+
+    // Phase 4: Lower to IR
+    let ir_module = lower_program(&program);
+
+    // Phase 5: Code Generation
+    let context = Context::create();
+    let module_name = file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("module");
+
+    let mut codegen = CodeGen::new(&context, module_name);
+    codegen.compile(&ir_module)?;
+
+    // Write object file
+    let obj_path = file.with_extension("o");
+    codegen.write_object_file(&obj_path)?;
+
+    // Link to executable
+    let exe_path = output.cloned().unwrap_or_else(|| file.with_extension(""));
+
+    let status = Command::new("cc")
+        .args([obj_path.to_str().unwrap(), "-o", exe_path.to_str().unwrap()])
+        .status()
+        .map_err(|e| format!("Failed to run linker: {}", e))?;
+
+    if !status.success() {
+        return Err("Linking failed".to_string());
+    }
+
+    // Clean up object file
+    let _ = fs::remove_file(&obj_path);
+
+    Ok(exe_path)
+}
+
+fn check(file: &PathBuf) -> Result<(), String> {
+    let filename = file.to_string_lossy();
+    let source = fs::read_to_string(file).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Parse
+    let mut parser = Parser::new(&source);
+    let program = parser.parse().inspect_err(|e| {
+        report_error(&filename, &source, &Diagnostic::error(e, (0, 1)));
+    })?;
+
+    // Type check
+    let mut type_checker = TypeChecker::new();
+    if let Err(errors) = type_checker.check_program(&program) {
+        for err in &errors {
+            report_error(&filename, &source, &Diagnostic::error(err, (0, 1)));
+        }
+        return Err(format!("{} type errors found", errors.len()));
+    }
+
+    // Borrow check
+    let mut borrow_checker = BorrowChecker::new();
+    if let Err(errors) = borrow_checker.check_program(&program) {
+        for err in &errors {
+            report_error(&filename, &source, &Diagnostic::error(err, (0, 1)));
+        }
+        return Err(format!("{} borrow errors found", errors.len()));
+    }
+
+    println!("No errors found.");
+    Ok(())
+}
+
+fn emit_ir(file: &PathBuf, output: Option<&PathBuf>) -> Result<(), String> {
+    let filename = file.to_string_lossy();
+    let source = fs::read_to_string(file).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Parse
+    let mut parser = Parser::new(&source);
+    let program = parser.parse().inspect_err(|e| {
+        report_error(&filename, &source, &Diagnostic::error(e, (0, 1)));
+    })?;
+
+    // Type check
+    let mut type_checker = TypeChecker::new();
+    if let Err(errors) = type_checker.check_program(&program) {
+        for err in &errors {
+            report_error(&filename, &source, &Diagnostic::error(err, (0, 1)));
+        }
+        return Err(format!("{} type errors found", errors.len()));
+    }
+
+    // Lower to IR
+    let ir_module = lower_program(&program);
+
+    // Generate LLVM IR
+    let context = Context::create();
+    let module_name = file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("module");
+
+    let mut codegen = CodeGen::new(&context, module_name);
+    codegen.compile(&ir_module)?;
+
+    let ir_string = codegen.get_ir_string();
+
+    if let Some(out_path) = output {
+        fs::write(out_path, &ir_string).map_err(|e| format!("Failed to write IR: {}", e))?;
+        println!("LLVM IR written to {:?}", out_path);
+    } else {
+        println!("{}", ir_string);
+    }
+
+    Ok(())
+}
+
 fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
-        Commands::Build { file, output } => {
-            println!("Building {:?} -> {:?}", file, output);
-            // TODO: Implement build
+    let result = match cli.command {
+        Commands::Build { file, output } => match compile(&file, output.as_ref()) {
+            Ok(exe_path) => {
+                println!("Compiled successfully: {:?}", exe_path);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        },
+        Commands::Run { file } => match compile(&file, None) {
+            Ok(exe_path) => match Command::new(&exe_path).status() {
+                Ok(status) => {
+                    if !status.success() {
+                        Err(format!("Program exited with code: {:?}", status.code()))
+                    } else {
+                        Ok(())
+                    }
+                }
+                Err(e) => Err(format!("Failed to run: {}", e)),
+            },
+            Err(e) => Err(e),
+        },
+        Commands::Check { file } => check(&file),
+        Commands::EmitIr { file, output } => emit_ir(&file, output.as_ref()),
+        Commands::Fmt { file, check: _ } => {
+            // TODO: Implement formatter
+            println!("Formatter not yet implemented for {:?}", file);
+            Ok(())
         }
-        Commands::Run { file } => {
-            println!("Running {:?}", file);
-            // TODO: Implement run
-        }
-        Commands::Check { file } => {
-            println!("Checking {:?}", file);
-            // TODO: Implement check
-        }
-        Commands::EmitIr { file, output } => {
-            println!("Emitting IR for {:?} -> {:?}", file, output);
-            // TODO: Implement emit-ir
-        }
-        Commands::Fmt { file, check } => {
-            println!("Formatting {:?} (check: {})", file, check);
-            // TODO: Implement fmt
-        }
+    };
+
+    if let Err(e) = result {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
     }
 }

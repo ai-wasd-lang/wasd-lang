@@ -4,4 +4,4 @@
 
 mod diagnostic;
 
-pub use diagnostic::{report_error, Diagnostic, DiagnosticKind};
+pub use diagnostic::{report_error, Diagnostic};

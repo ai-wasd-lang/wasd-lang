@@ -1,5 +1,7 @@
 //! Type checker implementation for WASD.
 
+#![allow(dead_code)]
+
 use super::types::WasdType;
 use crate::parser::{
     BinOp, EnumDef, Expr, Function, Item, Program, Stmt, StructDef, Type, UnaryOp,
@@ -19,17 +21,45 @@ pub struct TypeChecker {
 impl TypeChecker {
     /// Create a new type checker.
     pub fn new() -> Self {
-        Self {
+        let mut checker = Self {
             env: HashMap::new(),
             next_var: 0,
             substitutions: HashMap::new(),
-        }
+        };
+
+        // Register built-in functions
+        checker.register_builtins();
+
+        checker
+    }
+
+    /// Register built-in functions like print
+    fn register_builtins(&mut self) {
+        // print: (String) -> i32
+        self.env.insert(
+            "print".to_string(),
+            WasdType::Function {
+                params: vec![WasdType::String],
+                ret: Box::new(WasdType::I32),
+                effects: vec!["IO".to_string()],
+            },
+        );
     }
 
     /// Type check a complete program.
     pub fn check_program(&mut self, program: &Program) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
+        // First pass: register all function signatures
+        for item in &program.items {
+            if let Item::Function(f) = item {
+                if let Err(e) = self.register_function(f) {
+                    errors.push(e);
+                }
+            }
+        }
+
+        // Second pass: check function bodies
         for item in &program.items {
             if let Err(e) = self.check_item(item) {
                 errors.push(e);
@@ -43,6 +73,30 @@ impl TypeChecker {
         }
     }
 
+    fn register_function(&mut self, func: &Function) -> Result<(), String> {
+        let param_types: Result<Vec<WasdType>, String> = func
+            .params
+            .iter()
+            .map(|p| self.ast_type_to_wasd_type(&p.ty))
+            .collect();
+
+        let ret_type = func
+            .return_type
+            .as_ref()
+            .map(|t| self.ast_type_to_wasd_type(t))
+            .transpose()?
+            .unwrap_or(WasdType::Unit);
+
+        let fn_type = WasdType::Function {
+            params: param_types?,
+            ret: Box::new(ret_type),
+            effects: func.effects.clone(),
+        };
+
+        self.env.insert(func.name.clone(), fn_type);
+        Ok(())
+    }
+
     fn check_item(&mut self, item: &Item) -> Result<(), String> {
         match item {
             Item::Function(f) => self.check_function(f),
@@ -52,6 +106,9 @@ impl TypeChecker {
     }
 
     fn check_function(&mut self, func: &Function) -> Result<(), String> {
+        // Save current environment
+        let saved_env = self.env.clone();
+
         // Add parameters to environment
         for param in &func.params {
             let ty = self.ast_type_to_wasd_type(&param.ty)?;
@@ -62,6 +119,9 @@ impl TypeChecker {
         for stmt in &func.body {
             self.check_stmt(stmt)?;
         }
+
+        // Restore environment (remove local variables)
+        self.env = saved_env;
 
         Ok(())
     }
@@ -274,7 +334,9 @@ impl TypeChecker {
                 self.substitutions.insert(*v, ty.clone());
                 Ok(())
             }
-            (WasdType::Ref(a, a_mut), WasdType::Ref(b, b_mut)) if a_mut == b_mut => self.unify(a, b),
+            (WasdType::Ref(a, a_mut), WasdType::Ref(b, b_mut)) if a_mut == b_mut => {
+                self.unify(a, b)
+            }
             _ => Err(format!("Cannot unify {:?} with {:?}", a, b)),
         }
     }
@@ -283,5 +345,168 @@ impl TypeChecker {
 impl Default for TypeChecker {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::Parser;
+
+    fn check(source: &str) -> Result<(), Vec<String>> {
+        let mut parser = Parser::new(source);
+        let program = parser.parse().expect("Parse error");
+        let mut checker = TypeChecker::new();
+        checker.check_program(&program)
+    }
+
+    #[test]
+    fn test_simple_function() {
+        let source = r#"fn add(a: i64, b: i64) -> i64
+    a + b
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_function_call() {
+        let source = r#"fn add(a: i64, b: i64) -> i64
+    a + b
+
+fn main() -> i64
+    add(1, 2)
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_undefined_variable() {
+        let source = r#"fn main()
+    undefined_var
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("Undefined variable"));
+    }
+
+    #[test]
+    fn test_undefined_function() {
+        let source = r#"fn main()
+    undefined_func()
+"#;
+        let result = check(source);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_let_binding() {
+        let source = r#"fn main()
+    let x = 42
+    x
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_type_annotation() {
+        let source = r#"fn main()
+    let x: i64 = 42
+    x
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_binary_op_type() {
+        let source = r#"fn main() -> i64
+    1 + 2
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_comparison_op() {
+        let source = r#"fn main() -> bool
+    1 < 2
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_logical_op() {
+        let source = r#"fn main() -> bool
+    true and false
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_struct_type_registered() {
+        let source = r#"struct Point
+    x: f64
+    y: f64
+
+fn main()
+    let x = 1
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_enum_type_registered() {
+        let source = r#"enum Option[T]
+    Some(T)
+    None
+
+fn main()
+    let x = 1
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_effects_annotation() {
+        let source = r#"fn read_file() -> String with [IO]
+    file_contents
+"#;
+        // This tests that effects are captured from parsing
+        let mut parser = Parser::new(source);
+        let program = parser.parse().unwrap();
+        let mut checker = TypeChecker::new();
+        // Should register the function with effects
+        let _ = checker.check_program(&program);
+
+        if let Some(WasdType::Function { effects, .. }) = checker.env.get("read_file") {
+            assert_eq!(effects, &vec!["IO".to_string()]);
+        } else {
+            panic!("Expected function with effects");
+        }
+    }
+
+    #[test]
+    fn test_unary_negation() {
+        let source = r#"fn main() -> i64
+    -42
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_unary_not() {
+        let source = r#"fn main() -> bool
+    not true
+"#;
+        assert!(check(source).is_ok());
+    }
+
+    #[test]
+    fn test_multiple_functions() {
+        let source = r#"fn helper(x: i64) -> i64
+    x + 1
+
+fn main() -> i64
+    helper(41)
+"#;
+        assert!(check(source).is_ok());
     }
 }

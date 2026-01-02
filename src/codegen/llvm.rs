@@ -20,6 +20,7 @@ pub struct CodeGen<'ctx> {
     builder: Builder<'ctx>,
     variables: HashMap<String, PointerValue<'ctx>>,
     functions: HashMap<String, FunctionValue<'ctx>>,
+    string_counter: usize,
 }
 
 impl<'ctx> CodeGen<'ctx> {
@@ -28,13 +29,52 @@ impl<'ctx> CodeGen<'ctx> {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
 
-        Self {
+        let mut codegen = Self {
             context,
             module,
             builder,
             variables: HashMap::new(),
             functions: HashMap::new(),
-        }
+            string_counter: 0,
+        };
+
+        // Declare C library functions
+        codegen.declare_c_functions();
+
+        codegen
+    }
+
+    /// Declare external C library functions (puts, printf, etc.)
+    fn declare_c_functions(&mut self) {
+        // Declare puts: int puts(const char*)
+        let i32_type = self.context.i32_type();
+        let i8_ptr_type = self.context.ptr_type(inkwell::AddressSpace::default());
+        let puts_type = i32_type.fn_type(&[i8_ptr_type.into()], false);
+        let puts_fn = self.module.add_function("puts", puts_type, None);
+        self.functions.insert("puts".to_string(), puts_fn);
+
+        // Declare printf: int printf(const char*, ...)
+        let printf_type = i32_type.fn_type(&[i8_ptr_type.into()], true);
+        let printf_fn = self.module.add_function("printf", printf_type, None);
+        self.functions.insert("printf".to_string(), printf_fn);
+    }
+
+    /// Create a global string constant and return a pointer to it
+    fn create_global_string(&mut self, value: &str) -> PointerValue<'ctx> {
+        let string_name = format!(".str.{}", self.string_counter);
+        self.string_counter += 1;
+
+        // Create the string with null terminator
+        let string_value = self.context.const_string(value.as_bytes(), true);
+        let global = self
+            .module
+            .add_global(string_value.get_type(), None, &string_name);
+        global.set_initializer(&string_value);
+        global.set_constant(true);
+        global.set_linkage(inkwell::module::Linkage::Private);
+
+        // Return pointer to the string
+        global.as_pointer_value()
     }
 
     /// Compile an IR module to LLVM IR.
@@ -215,10 +255,13 @@ impl<'ctx> CodeGen<'ctx> {
                 self.variables.insert(dest.clone(), alloca);
             }
             IrInst::Call { dest, func, args } => {
+                // Map print to puts
+                let actual_func = if func == "print" { "puts" } else { func };
+
                 let fn_value = *self
                     .functions
-                    .get(func)
-                    .ok_or_else(|| format!("Function not found: {}", func))?;
+                    .get(actual_func)
+                    .ok_or_else(|| format!("Function not found: {}", actual_func))?;
 
                 let llvm_args: Result<Vec<BasicMetadataValueEnum>, String> = args
                     .iter()
@@ -332,7 +375,7 @@ impl<'ctx> CodeGen<'ctx> {
             .map_err(|e| format!("Failed to build binary op: {}", e))
     }
 
-    fn get_llvm_value(&self, value: &IrValue) -> Result<BasicValueEnum<'ctx>, String> {
+    fn get_llvm_value(&mut self, value: &IrValue) -> Result<BasicValueEnum<'ctx>, String> {
         match value {
             IrValue::ConstInt(n, ty) => {
                 let llvm_ty = self.get_llvm_type(ty);
@@ -344,6 +387,11 @@ impl<'ctx> CodeGen<'ctx> {
             }
             IrValue::ConstBool(b) => {
                 Ok(self.context.bool_type().const_int(*b as u64, false).into())
+            }
+            IrValue::ConstString(s) => {
+                // Create a global string constant and return pointer to it
+                let str_ptr = self.create_global_string(s);
+                Ok(str_ptr.into())
             }
             IrValue::Var(name) => {
                 let ptr = self
@@ -371,9 +419,11 @@ impl<'ctx> CodeGen<'ctx> {
             IrType::F32 => self.context.f32_type().into(),
             IrType::F64 => self.context.f64_type().into(),
             IrType::Bool => self.context.bool_type().into(),
-            IrType::Ptr(inner) => {
-                let inner_ty = self.get_llvm_type(inner);
-                inner_ty.ptr_type(inkwell::AddressSpace::default()).into()
+            IrType::Ptr(_inner) => {
+                // LLVM 15+ uses opaque pointers - no need for inner type
+                self.context
+                    .ptr_type(inkwell::AddressSpace::default())
+                    .into()
             }
             IrType::Array(inner, size) => {
                 let inner_ty = self.get_llvm_type(inner);
@@ -385,5 +435,140 @@ impl<'ctx> CodeGen<'ctx> {
             }
             IrType::Void => self.context.i64_type().into(), // Placeholder
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::lower_program;
+    use crate::parser::Parser;
+
+    fn compile_to_ir(source: &str) -> String {
+        let mut parser = Parser::new(source);
+        let program = parser.parse().expect("Parse error");
+        let ir_module = lower_program(&program);
+
+        let context = Context::create();
+        let mut codegen = CodeGen::new(&context, "test");
+        codegen.compile(&ir_module).expect("Codegen error");
+        codegen.get_ir_string()
+    }
+
+    #[test]
+    fn test_simple_function_codegen() {
+        let source = r#"fn main() -> i64
+    42
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("define i64 @main()"));
+        assert!(ir.contains("ret i64"));
+    }
+
+    #[test]
+    fn test_function_with_params() {
+        let source = r#"fn add(a: i64, b: i64) -> i64
+    a + b
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("define i64 @add(i64"));
+        assert!(ir.contains("add i64"));
+    }
+
+    #[test]
+    fn test_function_call_codegen() {
+        let source = r#"fn helper() -> i64
+    42
+
+fn main() -> i64
+    helper()
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("call i64 @helper()"));
+    }
+
+    #[test]
+    fn test_let_binding_codegen() {
+        let source = r#"fn main() -> i64
+    let x = 42
+    x
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("alloca i64"));
+        assert!(ir.contains("store i64 42"));
+    }
+
+    #[test]
+    fn test_binary_operations_with_vars() {
+        // Use variables to prevent constant folding
+        let source = r#"fn add(a: i64, b: i64) -> i64
+    a + b
+"#;
+        let ir = compile_to_ir(source);
+        // Check that addition instruction is generated
+        assert!(ir.contains("add i64"));
+    }
+
+    #[test]
+    fn test_subtraction_codegen() {
+        let source = r#"fn sub(a: i64, b: i64) -> i64
+    a - b
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("sub i64"));
+    }
+
+    #[test]
+    fn test_multiplication_codegen() {
+        let source = r#"fn mul(a: i64, b: i64) -> i64
+    a * b
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("mul i64"));
+    }
+
+    #[test]
+    fn test_division_codegen() {
+        let source = r#"fn div(a: i64, b: i64) -> i64
+    a / b
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("sdiv i64"));
+    }
+
+    #[test]
+    fn test_comparison_codegen() {
+        let source = r#"fn less(a: i64, b: i64) -> bool
+    a < b
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("icmp slt i64"));
+    }
+
+    #[test]
+    fn test_constant_folding() {
+        // Verify that 1 + 2 is constant folded to 3
+        let source = r#"fn main() -> i64
+    1 + 2
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("store i64 3"));
+    }
+
+    #[test]
+    fn test_multiple_functions() {
+        let source = r#"fn foo() -> i64
+    1
+
+fn bar() -> i64
+    2
+
+fn main() -> i64
+    foo()
+"#;
+        let ir = compile_to_ir(source);
+        assert!(ir.contains("define i64 @foo()"));
+        assert!(ir.contains("define i64 @bar()"));
+        assert!(ir.contains("define i64 @main()"));
     }
 }

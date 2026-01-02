@@ -1,0 +1,24 @@
+// Arithmetic operations example
+fn add(a: i64, b: i64) -> i64
+    a + b
+
+fn subtract(a: i64, b: i64) -> i64
+    a - b
+
+fn multiply(a: i64, b: i64) -> i64
+    a * b
+
+fn divide(a: i64, b: i64) -> i64
+    a / b
+
+fn main() -> i64
+    print("Arithmetic Operations Demo")
+    print("==========================")
+    let x = 10
+    let y = 3
+    let sum = add(x, y)
+    let diff = subtract(x, y)
+    let product = multiply(x, y)
+    let quotient = divide(x, y)
+    print("10 + 3 = 13 (exit code)")
+    sum

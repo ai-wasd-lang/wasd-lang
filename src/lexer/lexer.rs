@@ -311,6 +311,8 @@ impl<'a> Lexer<'a> {
             "in" => Token::In,
             "return" => Token::Return,
             "with" => Token::With,
+            "use" => Token::Use,
+            "as" => Token::As,
             "heap" => Token::Heap,
             "rc" => Token::Rc,
             "arc" => Token::Arc,

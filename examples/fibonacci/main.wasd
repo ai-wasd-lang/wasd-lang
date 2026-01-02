@@ -1,0 +1,17 @@
+// Fibonacci numbers (iterative style)
+fn fib_step(a: i64, b: i64) -> i64
+    a + b
+
+fn main() -> i64
+    print("Fibonacci Sequence Demo")
+    print("=======================")
+    print("Computing: 0, 1, 1, 2, 3, 5, 8...")
+    let a = 0
+    let b = 1
+    let c = fib_step(a, b)
+    let d = fib_step(b, c)
+    let e = fib_step(c, d)
+    let f = fib_step(d, e)
+    let g = fib_step(e, f)
+    print("7th Fibonacci number: 8 (exit code)")
+    g

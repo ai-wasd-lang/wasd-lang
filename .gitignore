@@ -22,6 +22,9 @@ Thumbs.db
 *.ll
 *.bc
 
+# Compiled WASD binaries (keep .wasd source files)
+examples/*/output
+
 # Test artifacts
 *.snap.new
 

@@ -1,5 +1,7 @@
 //! Type representations for the WASD type system.
 
+#![allow(dead_code)]
+
 /// Internal type representation used during type checking.
 #[derive(Debug, Clone, PartialEq)]
 pub enum WasdType {

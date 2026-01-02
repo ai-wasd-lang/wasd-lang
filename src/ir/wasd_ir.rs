@@ -2,6 +2,8 @@
 //!
 //! A lower-level representation closer to machine operations.
 
+#![allow(dead_code)]
+
 /// A WASD IR module (compilation unit).
 #[derive(Debug, Clone)]
 pub struct IrModule {
@@ -86,6 +88,8 @@ pub enum IrValue {
     ConstFloat(f64, IrType),
     /// Boolean constant
     ConstBool(bool),
+    /// String constant
+    ConstString(String),
     /// Variable reference
     Var(String),
     /// Unit value

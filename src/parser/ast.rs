@@ -1,5 +1,7 @@
 //! Abstract Syntax Tree definitions for WASD.
 
+#![allow(dead_code)]
+
 use crate::lexer::Span;
 
 /// A complete WASD program.
@@ -11,9 +13,22 @@ pub struct Program {
 /// Top-level items in a WASD program.
 #[derive(Debug, Clone)]
 pub enum Item {
+    Use(UseStmt),
     Function(Function),
     Struct(StructDef),
     Enum(EnumDef),
+}
+
+/// A use/import statement.
+#[derive(Debug, Clone)]
+pub struct UseStmt {
+    /// The path being imported (e.g., "std.io.print" or "std.io")
+    pub path: Vec<String>,
+    /// Whether this is a wildcard import (use std.io.*)
+    pub wildcard: bool,
+    /// Optional alias (use std.io.print as p)
+    pub alias: Option<String>,
+    pub span: Span,
 }
 
 /// A function definition.
