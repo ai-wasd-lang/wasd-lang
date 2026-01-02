@@ -1,0 +1,41 @@
+// Test demo - showing #[test] attribute support
+
+#[test]
+fn test_addition()
+    let x = 2 + 2
+    if x == 4
+        return
+    else
+        // Force failure with non-zero return
+        let mut i = 1
+        while i > 0
+            i = i
+
+#[test]
+fn test_multiplication()
+    let x = 3 * 4
+    if x == 12
+        return
+    else
+        let mut i = 1
+        while i > 0
+            i = i
+
+#[test]
+#[ignore]
+fn test_ignored()
+    // This test is ignored
+    let mut i = 1
+    while i > 0
+        i = i
+
+#[test]
+fn test_comparison()
+    let a = 10
+    let b = 5
+    if a > b
+        return
+    else
+        let mut i = 1
+        while i > 0
+            i = i

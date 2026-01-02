@@ -128,6 +128,17 @@ enum Commands {
     /// Start an interactive REPL session
     Repl,
 
+    /// Run tests in a WASD project
+    Test {
+        /// Path to test file or directory (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Filter tests by name
+        #[arg(short, long)]
+        filter: Option<String>,
+    },
+
     /// Start the Language Server Protocol server
     Lsp,
 
@@ -340,6 +351,221 @@ fn format_file(file: &PathBuf, check_only: bool) -> Result<(), String> {
     }
 }
 
+/// Run tests in a WASD project
+fn run_tests(path: &PathBuf, filter: Option<&str>) -> Result<(), String> {
+    use std::time::Instant;
+    use walkdir::WalkDir;
+
+    let start = Instant::now();
+    let mut test_files = Vec::new();
+
+    // Collect all .wasd files
+    if path.is_file() {
+        test_files.push(path.clone());
+    } else {
+        for entry in WalkDir::new(path)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().map_or(false, |e| e == "wasd") {
+                test_files.push(p.to_path_buf());
+            }
+        }
+    }
+
+    // Parse all files and collect test functions
+    let mut tests = Vec::new();
+
+    for file in &test_files {
+        let source = fs::read_to_string(file)
+            .map_err(|e| format!("Failed to read {}: {}", file.display(), e))?;
+
+        let mut parser = Parser::new(&source);
+        let program = parser
+            .parse()
+            .map_err(|e| format!("Parse error in {}: {}", file.display(), e))?;
+
+        for item in &program.items {
+            if let parser::Item::Function(func) = item {
+                // Check if function has #[test] attribute
+                let is_test = func.attributes.iter().any(|a| a.name == "test");
+                let is_ignored = func.attributes.iter().any(|a| a.name == "ignore");
+
+                if is_test {
+                    let name = format!("{}::{}", file.display(), func.name);
+                    // Apply filter if provided
+                    if let Some(f) = filter {
+                        if !name.contains(f) && !func.name.contains(f) {
+                            continue;
+                        }
+                    }
+                    tests.push((file.clone(), func.name.clone(), is_ignored));
+                }
+            }
+        }
+    }
+
+    if tests.is_empty() {
+        println!("No tests found.");
+        return Ok(());
+    }
+
+    println!("\nRunning {} test(s)...\n", tests.len());
+
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut ignored = 0;
+
+    for (file, test_name, is_ignored) in &tests {
+        print!("test {} ... ", test_name);
+
+        if *is_ignored {
+            println!("\x1b[33mignored\x1b[0m");
+            ignored += 1;
+            continue;
+        }
+
+        // Compile and run the test
+        match compile_and_run_test(file, test_name) {
+            Ok(true) => {
+                println!("\x1b[32mok\x1b[0m");
+                passed += 1;
+            }
+            Ok(false) => {
+                println!("\x1b[31mFAILED\x1b[0m");
+                failed += 1;
+            }
+            Err(e) => {
+                println!("\x1b[31mFAILED\x1b[0m - {}", e);
+                failed += 1;
+            }
+        }
+    }
+
+    let elapsed = start.elapsed();
+    println!();
+    println!(
+        "test result: {}. {} passed; {} failed; {} ignored; finished in {:.2}s",
+        if failed == 0 { "\x1b[32mok\x1b[0m" } else { "\x1b[31mFAILED\x1b[0m" },
+        passed,
+        failed,
+        ignored,
+        elapsed.as_secs_f64()
+    );
+
+    if failed > 0 {
+        Err(format!("{} test(s) failed", failed))
+    } else {
+        Ok(())
+    }
+}
+
+/// Compile and run a single test function, returning Ok(true) for pass, Ok(false) for fail
+fn compile_and_run_test(file: &PathBuf, test_name: &str) -> Result<bool, String> {
+    let source = fs::read_to_string(file)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Parse the file
+    let mut parser = Parser::new(&source);
+    let mut program = parser.parse()?;
+
+    // Find and wrap the test function into a main function that calls it
+    let _test_func = program.items.iter().find_map(|item| {
+        if let parser::Item::Function(f) = item {
+            if f.name == test_name {
+                Some(f.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }).ok_or_else(|| format!("Test function '{}' not found", test_name))?;
+
+    // Create a synthetic main that calls the test
+    // For now, just compile and run the original - test is expected to return 0 on success
+    let has_main = program.items.iter().any(|item| {
+        matches!(item, parser::Item::Function(f) if f.name == "main")
+    });
+
+    if !has_main {
+        // Create a main function that calls the test and returns 0 on success
+        let main_source = format!(
+            "fn main() -> i64\n    {}()\n    0\n",
+            test_name
+        );
+
+        // Re-parse with a generated main
+        let full_source = format!("{}\n{}", source, main_source);
+        let mut parser = Parser::new(&full_source);
+        program = parser.parse()?;
+    }
+
+    // Type check
+    let mut type_checker = TypeChecker::new();
+    type_checker.check_program(&program).map_err(|errors| {
+        errors.join("; ")
+    })?;
+
+    // Borrow check
+    let mut borrow_checker = BorrowChecker::new();
+    borrow_checker.check_program(&program).map_err(|errors| {
+        errors.join("; ")
+    })?;
+
+    // Lower to IR
+    let ir_module = lower_program(&program);
+
+    // Generate code
+    let context = Context::create();
+    let mut codegen = CodeGen::new(&context, "test");
+    codegen.compile(&ir_module)?;
+
+    // Write and run
+    let temp_dir = std::env::temp_dir();
+    let obj_path = temp_dir.join(format!("wasd_test_{}.o", std::process::id()));
+    let exe_path = temp_dir.join(format!("wasd_test_{}", std::process::id()));
+
+    codegen.write_object_file(&obj_path)?;
+
+    // Link
+    let runtime_lib = find_runtime_library();
+    let mut linker_args = vec![
+        obj_path.to_str().unwrap().to_string(),
+        "-o".to_string(),
+        exe_path.to_str().unwrap().to_string(),
+        "-lm".to_string(),
+    ];
+
+    if let Some(lib_path) = runtime_lib {
+        linker_args.push(lib_path);
+    }
+
+    let status = Command::new("cc")
+        .args(&linker_args)
+        .status()
+        .map_err(|e| format!("Failed to run linker: {}", e))?;
+
+    if !status.success() {
+        let _ = fs::remove_file(&obj_path);
+        return Err("Linking failed".to_string());
+    }
+
+    // Run the test
+    let output = Command::new(&exe_path)
+        .output()
+        .map_err(|e| format!("Failed to run test: {}", e))?;
+
+    // Clean up
+    let _ = fs::remove_file(&obj_path);
+    let _ = fs::remove_file(&exe_path);
+
+    // Exit code 0 = test passed
+    Ok(output.status.success())
+}
+
 /// Find the wasd.toml manifest in the current or parent directories
 fn find_manifest() -> Result<PathBuf, String> {
     let mut current = std::env::current_dir().map_err(|e| e.to_string())?;
@@ -399,6 +625,7 @@ fn main() {
         Commands::Check { file } => check(&file),
         Commands::EmitIr { file, output } => emit_ir(&file, output.as_ref()),
         Commands::Fmt { file, check } => format_file(&file, check),
+        Commands::Test { path, filter } => run_tests(&path, filter.as_deref()),
         Commands::Repl => {
             let mut repl = repl::Repl::new();
             repl.run()

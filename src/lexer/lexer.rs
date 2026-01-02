@@ -97,6 +97,7 @@ impl<'a> Lexer<'a> {
             '?' => Token::Question,
             '&' => Token::Ampersand,
             '|' => Token::Pipe,
+            '#' => Token::Hash,
 
             // Multi-char tokens
             '-' => {

@@ -47,9 +47,18 @@ impl Default for Visibility {
     }
 }
 
+/// An attribute on a function or item, e.g. #[test], #[ignore]
+#[derive(Debug, Clone)]
+pub struct Attribute {
+    pub name: String,
+    pub args: Vec<String>, // Optional arguments, e.g. #[timeout(1000)]
+    pub span: Span,
+}
+
 /// A function definition.
 #[derive(Debug, Clone)]
 pub struct Function {
+    pub attributes: Vec<Attribute>,
     pub visibility: Visibility,
     pub is_async: bool,
     pub name: String,

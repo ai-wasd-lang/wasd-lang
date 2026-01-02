@@ -1,15 +1,20 @@
-TESTING FRAMEWORK - NOT IMPLEMENTED
-====================================
+TESTING FRAMEWORK - PARTIALLY IMPLEMENTED
+=========================================
 
-ALL OF THESE ARE MISSING:
+IMPLEMENTED:
 
-[ ] Test runner
+[x] Test runner
     - wasd test command
     - Discover and run #[test] functions
+    - Test filtering with --filter
 
-[ ] Test attributes
+[x] Test attributes (basic)
     - #[test] - mark test function
     - #[ignore] - skip by default
+
+NOT IMPLEMENTED:
+
+[ ] Test attributes (advanced)
     - #[should_panic] - expect panic
     - #[timeout(ms)] - timeout
 

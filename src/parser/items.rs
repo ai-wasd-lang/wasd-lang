@@ -7,6 +7,9 @@ use crate::lexer::Token;
 impl<'a> Parser<'a> {
     /// Parse a top-level item.
     pub(super) fn parse_item(&mut self) -> Result<Item, String> {
+        // Parse any attributes before the item
+        let attributes = self.parse_attributes()?;
+
         // Check for visibility modifier
         let is_pub = if self.check(&Token::Pub) {
             self.advance();
@@ -26,7 +29,7 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Token::Use => self.parse_use().map(Item::Use),
             Token::Import => self.parse_use().map(Item::Use), // import is an alias for use
-            Token::Fn => self.parse_function_impl(is_pub, is_async).map(Item::Function),
+            Token::Fn => self.parse_function_with_attrs(is_pub, is_async, attributes).map(Item::Function),
             Token::Struct => self.parse_struct_with_visibility(is_pub).map(Item::Struct),
             Token::Enum => self.parse_enum_with_visibility(is_pub).map(Item::Enum),
             Token::Trait => self.parse_trait().map(Item::Trait),
@@ -34,6 +37,53 @@ impl<'a> Parser<'a> {
             Token::Extern => self.parse_extern_fn().map(Item::ExternFn),
             _ => Err(format!("Expected item, found {:?}", self.peek())),
         }
+    }
+
+    /// Parse attributes (e.g., #[test], #[ignore])
+    fn parse_attributes(&mut self) -> Result<Vec<Attribute>, String> {
+        let mut attrs = Vec::new();
+
+        while self.check(&Token::Hash) {
+            let span = self.current_span();
+            self.advance(); // consume #
+            self.expect(&Token::LBracket)?;
+
+            let name = self.expect_ident()?;
+
+            // Parse optional arguments: #[timeout(1000)]
+            let args = if self.check(&Token::LParen) {
+                self.advance();
+                let mut args = Vec::new();
+                while !self.check(&Token::RParen) {
+                    // Accept idents or numbers as arguments
+                    match self.peek() {
+                        Token::Ident(s) => {
+                            args.push(s.clone());
+                            self.advance();
+                        }
+                        Token::Int(n) => {
+                            args.push(n.to_string());
+                            self.advance();
+                        }
+                        _ => return Err("Expected attribute argument".to_string()),
+                    }
+                    if !self.check(&Token::RParen) {
+                        self.expect(&Token::Comma)?;
+                    }
+                }
+                self.expect(&Token::RParen)?;
+                args
+            } else {
+                Vec::new()
+            };
+
+            self.expect(&Token::RBracket)?;
+            self.skip_newlines();
+
+            attrs.push(Attribute { name, args, span });
+        }
+
+        Ok(attrs)
     }
 
     /// Parse a use statement.
@@ -93,11 +143,11 @@ impl<'a> Parser<'a> {
 
     /// Parse a function definition with visibility.
     pub(super) fn parse_function_with_visibility(&mut self, is_pub: bool) -> Result<Function, String> {
-        self.parse_function_impl(is_pub, false)
+        self.parse_function_with_attrs(is_pub, false, Vec::new())
     }
 
-    /// Parse a function definition with visibility and async flag.
-    pub(super) fn parse_function_impl(&mut self, is_pub: bool, is_async: bool) -> Result<Function, String> {
+    /// Parse a function definition with visibility, async flag, and attributes.
+    fn parse_function_with_attrs(&mut self, is_pub: bool, is_async: bool, attributes: Vec<Attribute>) -> Result<Function, String> {
         let start = self.current_span();
         self.expect(&Token::Fn)?;
         let name = self.expect_ident()?;
@@ -153,6 +203,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Function {
+            attributes,
             visibility,
             is_async,
             name,

@@ -21,6 +21,7 @@ impl Monomorphizer {
         let body: Vec<Stmt> = func.body.iter().map(|s| self.transform_stmt(s)).collect();
 
         Function {
+            attributes: func.attributes.clone(),
             visibility: func.visibility,
             is_async: func.is_async,
             name: func.name.clone(),

@@ -90,6 +90,7 @@ pub enum Token {
     DoubleColon,
     Dot,
     DotDot,
+    Hash, // # for attributes like #[test]
 
     // Indentation
     Indent,
@@ -168,6 +169,7 @@ impl fmt::Display for Token {
             Token::DoubleColon => write!(f, "::"),
             Token::Dot => write!(f, "."),
             Token::DotDot => write!(f, ".."),
+            Token::Hash => write!(f, "#"),
             Token::Indent => write!(f, "<INDENT>"),
             Token::Dedent => write!(f, "<DEDENT>"),
             Token::Newline => write!(f, "<NEWLINE>"),
